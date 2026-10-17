@@ -158,8 +158,12 @@
                                projects, and four cl.exe end up writing one pdb -
                                fatal error C1041. Undefined, all four requests are the
                                same project and it is built once.
+
+    On Windows only, where it builds: Dependabot reads the projects on Linux, follows their
+    references, and the vcxproj imports Visual C++ targets that are not there - its NuGet
+    updates failed on that before updating anything.
   -->
-  <ItemGroup>
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
     <ProjectReference Include="..\Hyperlite.Native\Hyperlite.Native.vcxproj"
                       ReferenceOutputAssembly="false"
                       SkipGetTargetFrameworkProperties="true"
