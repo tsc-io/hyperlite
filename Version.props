@@ -1,0 +1,50 @@
+﻿<Project>
+  <!--
+    Version and copyright for the whole repository, in one place.
+
+    Directory.Build.props imports this, and msbuild imports that into every project,
+    managed and native alike - so a single literal below reaches the assembly
+    attributes, the package version and the native version resource.
+
+    A calendar version, year.month, written out to all four parts rather than left to
+    be padded. Two part versions do pad - 2026.10 becomes 2026.10.0.0 - but only after
+    the fact, and different consumers show the result differently, so the padding is
+    spelled out here instead. Note that a month written with a leading zero loses it in
+    the assembly version, 2026.09 arriving as 2026.9, because that field is a number;
+    the file version keeps the string as written.
+
+    The assembly version is the year alone, 2026.0.0.0. The assemblies are strong named,
+    so on .NET Framework the assembly version is part of their identity: moved every
+    month, each release would need a binding redirect in every application that updates
+    Hyperlite without rebuilding what references it. The file version and the package
+    version carry the release.
+  -->
+  <PropertyGroup>
+    <Version>2026.10.0.0</Version>
+    <AssemblyVersion>$([System.Version]::Parse('$(Version)').Major).0.0.0</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+    <!-- the version nuget writes - the fourth part dropped when it is zero - stated rather than
+         left to nuget, so what names a package file outside nuget, the sbom step and the
+         explorer zip, names it the same -->
+    <PackageVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(Version)', '^(\d+\.\d+\.\d+)\.0$', '$1'))</PackageVersion>
+    <!-- the holder, once: the copyright, the company, the package authors and the native resource derive from it -->
+    <CopyrightHolder>Thalmann Software&amp;Consulting</CopyrightHolder>
+    <Copyright>Copyright © 2010-2026 $(CopyrightHolder)</Copyright>
+  </PropertyGroup>
+
+  <!--
+    Forms the native half needs, all derived so there is still one literal above.
+
+    VersionComma is what an .rc FILEVERSION statement wants, comma separated integers.
+    System.Version normalises the month on the way through, 09 to 9, which matters:
+    rc.exe would read a leading zero as octal.
+
+    CopyrightEscaped writes the sign as \xA9 so the generated header, and the .rc that
+    includes it, stay plain ascii.
+  -->
+  <PropertyGroup>
+    <VersionNumeric>$([System.Version]::Parse('$(Version)').ToString())</VersionNumeric>
+    <VersionComma>$(VersionNumeric.Replace('.',','))</VersionComma>
+    <CopyrightEscaped>$(Copyright.Replace('©','\xA9'))</CopyrightEscaped>
+  </PropertyGroup>
+</Project>

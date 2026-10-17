@@ -1,0 +1,99 @@
+﻿<?xml version="1.0"?>
+<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:properties="clr-namespace:Hyperlite.Explorer.Properties"
+             xmlns:Pages="clr-namespace:Hyperlite.Explorer.Pages" x:Class="Hyperlite.Explorer.Pages.ConnectPage"
+             x:ClassModifier="internal"
+             mc:Ignorable="d"
+             d:DesignHeight="300"
+             d:DesignWidth="600">
+    <UserControl.Resources>
+        <!-- TextBlock -->
+        <Style TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Light"/>
+            <Setter Property="Foreground" Value="#FF919191"/>
+        </Style>
+        <!-- TextBox -->
+        <Style TargetType="TextBox">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="KeyboardNavigation.TabNavigation" Value="None"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="AllowDrop" Value="true"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Light"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBoxBase">
+                        <Border CornerRadius="0" Padding="4,2" BorderBrush="#FF919191" BorderThickness="1">
+                            <ScrollViewer Margin="0" x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <DataTemplate x:Key="RecentConnections">
+            <TextBlock Padding = "0,5,0,0">
+                <Hyperlink NavigateUri="{Binding}" RequestNavigate="HandleRequestNavigate" Foreground="#FF919191" FontSize="14" FontWeight="Normal" TextDecorations="None" >
+                    <TextBlock Text="{Binding}" />
+                </Hyperlink>
+            </TextBlock>
+        </DataTemplate>
+        <properties:Settings x:Key="Settings"/>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*"/>
+            <ColumnDefinition Width="8*"/>
+            <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="8*"/>
+        </Grid.RowDefinitions>
+        <Grid VerticalAlignment="Top" HorizontalAlignment="Stretch" Grid.Column="1" Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition MinWidth="200" MaxWidth="600"/>
+                <ColumnDefinition Width="90"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition/>
+                <RowDefinition Height="5"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="5"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="25"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Please enter the connection string:" FontSize="18" VerticalAlignment="Center" Grid.Column="0" Grid.Row="0"/>
+            <TextBox x:Name="connectionString" x:FieldModifier="private" Text="{Binding Source={StaticResource Settings}, Path=Default.ConnectionString}"
+                     Margin="5,0,0,0" HorizontalAlignment="Stretch" Focusable="True" Grid.Column="0" Grid.Row="2"/>
+            <Button x:Name="connect" x:FieldModifier="private" IsDefault="True" Margin="2,0,0,0" Grid.Column="1" Grid.Row="2">
+                <TextBlock Text="Connect" FontSize="18" Foreground="White"/>
+            </Button>
+            <TextBlock Text="e.g. Provider=SQLite; Uri=file://hyperlite.db" Margin="5,0,0,0"
+                       FontWeight="Normal" FontSize="14" VerticalAlignment="Top" Grid.Column="0" Grid.Row="4"/>
+            <Border x:Name="connectionError" x:FieldModifier="private" Padding="3" BorderBrush="Goldenrod" BorderThickness="1" Background="PaleGoldenrod"
+                    Visibility="Collapsed" HorizontalAlignment="Right" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="4">
+                <TextBlock Text="Connection failed." FontSize="14" Foreground="Black" />
+            </Border>
+            <StackPanel x:Name="recentConnections" x:FieldModifier="private" Margin="5,0,0,0" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="6">
+                <TextBlock Text="Recent connections:" FontWeight="Normal" FontSize="14" />
+                <ListBox Margin="5,0,0,0" BorderBrush="Transparent"
+                         ItemsSource="{Binding RecentConnections, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type Pages:ConnectPage}}}"
+                         ItemTemplate="{StaticResource RecentConnections}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                         ScrollViewer.VerticalScrollBarVisibility="Hidden">
+                    <ListBox.Resources>
+                        <SolidColorBrush x:Key='{x:Static SystemColors.HighlightBrushKey}' Color='Transparent'/>
+                        <SolidColorBrush x:Key='{x:Static SystemColors.HighlightTextBrushKey}' Color='Black'/>
+                        <SolidColorBrush x:Key='{x:Static SystemColors.ControlBrushKey}' Color='Transparent'/>
+                    </ListBox.Resources>
+                </ListBox>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

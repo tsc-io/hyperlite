@@ -1,0 +1,15 @@
+# Text is stored with LF and checked out with CRLF, as .editorconfig asks: this is a Windows
+# repository - msbuild, the C++ toolset, the .cmd scripts - and cmd.exe can misread a batch
+# file whose lines end in LF alone when it jumps to a label.
+* text=auto eol=crlf
+
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+*.png binary
+*.ico binary
+*.zip binary
+*.snk binary
+*.dll binary
+*.exe binary
+*.pdb binary

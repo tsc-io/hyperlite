@@ -1,0 +1,86 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tests for Hyperlite.Serialization, sharing the serialization tests with Hyperlite.Persistence.Test the
+    same way the two libraries share their sources: the test lives once, and is compiled
+    against whichever of the two assemblies is under test.
+  -->
+
+  <PropertyGroup>
+    <TargetFrameworks>$(HyperliteTargetFrameworks)</TargetFrameworks>
+
+    <!--
+      A directory of its own under the framework directory. All three suites emit
+      testhost.dll.config, a fixed name, and they do not all want the same contents - see
+      the layout note in Directory.Build.props.
+
+      That needs a segment after the framework, which means placing the framework by hand
+      and so turning off the property that appends it. That property also governs
+      IntermediateOutputPath, so the framework has to be put back there too or every
+      framework of this project would share one obj directory.
+    -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>$(BaseOutputPath)$(TargetFramework)\$(MSBuildProjectName)\</OutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)\$(TargetFramework)\</IntermediateOutputPath>
+    <RootNamespace>Hyperlite.Persistence.Test.Serialization</RootNamespace>
+    <AssemblyName>Hyperlite.Serialization.Test</AssemblyName>
+    <AssemblyTitle>Hyperlite.Serialization.Test</AssemblyTitle>
+    <Product>Hyperlite.Serialization</Product>
+    <Description>Hyperlite.Serialization tests</Description>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);1587</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The expected serialized form, read by TestFormatCompatibility. Embedded rather
+      than copied so the fixture cannot be run against a stale file on disk.
+    -->
+    <EmbeddedResource Include="..\Hyperlite.Persistence.Test\Serialization\format-golden.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Hyperlite.Persistence.Test\Properties\AssemblyInfo.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Common\Equatable.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Common\Rng.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\SampleTypes.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\InvariantCulture.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestValueSerialization.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestCollectionSerialization.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestObjectSerialization.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestCustomSerialization.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\FormatCorpus.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestFormatCompatibility.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestStreamSerialization.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestCaseInsensitiveMembers.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestHashFlooding.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestStrictTypes.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestSerializationCallbacks.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestHostileInput.cs" />
+    <Compile Include="..\Hyperlite.Persistence.Test\Serialization\TestSchemaEvolution.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Hyperlite.Persistence.Test\App.config">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Hyperlite.Serialization\Hyperlite.Serialization.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="MSTest.TestAdapter" />
+    <PackageReference Include="MSTest.TestFramework" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" />
+  </ItemGroup>
+
+  <Target Name="CopyTestHostConfig" AfterTargets="Build" Condition="'$(TargetFramework)' != 'net48'">
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll.config"
+          DestinationFiles="$(OutputPath)testhost.dll.config"
+          Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
+  </Target>
+
+</Project>

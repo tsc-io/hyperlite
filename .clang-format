@@ -1,0 +1,40 @@
+# The layout of the C and C++ sources (src/Hyperlite.Native, tests/Hyperlite.Native.Test).
+# Braces on a line of their own, as in the C# code; otherwise the layout the code already
+# follows: four spaces, no namespace indentation, access specifiers at the class's column.
+# format.cmd applies it, or checks it; it does not look at deps/, which is third-party code.
+
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+AccessModifierOffset: -4
+NamespaceIndentation: None
+WrapNamespaceBodyWithEmptyLines: Never
+KeepEmptyLines:
+  AtStartOfBlock: false
+  AtStartOfFile: false
+  AtEndOfFile: false
+BreakBeforeBraces: Allman
+PointerAlignment: Left
+DerivePointerAlignment: false
+IndentCaseLabels: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AlwaysBreakTemplateDeclarations: Yes
+FixNamespaceComments: true
+SpaceBeforeParens: ControlStatements
+Cpp11BracedListStyle: true
+AlignAfterOpenBracket: Align
+AlignTrailingComments: true
+AlignConsecutiveDeclarations: None
+AlignConsecutiveAssignments: None
+BinPackParameters: true
+BinPackArguments: true
+ReflowComments: false
+
+# includes are not sorted: their order is deliberate in places - bcrypt.h needs windows.h
+# before it, the CRT headers go ahead of the sqlite amalgamation - and a sort would
+# silently undo it
+SortIncludes: Never
+IncludeBlocks: Preserve

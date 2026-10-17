@@ -1,0 +1,7 @@
+; Hyperlite.Native exports exactly one entry point, and on windows only by ordinal.
+;
+; NONAME keeps the name out of the export table, so nothing in the binary hints
+; at the shape of the api. Hyperlite resolves it with GetProcAddress(h, (LPCSTR)1)
+; and binds the dispatch table it returns; see abi.h.
+EXPORTS
+    q4kf9wz @1 NONAME

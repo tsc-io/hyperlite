@@ -1,0 +1,3 @@
+# Third-party code keeps its own layout.
+DisableFormat: true
+SortIncludes: Never

@@ -1,0 +1,125 @@
+﻿<Project>
+  <!--
+    The SBOM in every package: Microsoft.Sbom.Tool, run on the package once it is packed.
+
+    The tool comes in Microsoft.Sbom.Targets, fetched by a PackageDownload in Directory.Build.props
+    and called here directly rather than through the package's own targets, for two reasons:
+
+    - As a PackageReference - PrivateAssets or not - the package is in the restore graph,
+      project.assets.json, which is what the tool's component detection reads: it named itself as
+      a dependency of every package, though nothing of it is in one. A PackageDownload leaves the
+      graph alone.
+    - Under the full-framework msbuild its task passes -ExternalDocumentListFile, which the tool
+      does not accept - the argument is ExternalDocumentReferenceListFile - so a package with an
+      external document failed to get an SBOM at all.
+
+    What the package's target did, done the same way: unzip the package, generate into it, zip it
+    again. Unpacked outside the folder component detection scans, so the package's own files are
+    hashed as files, not detected as components.
+  -->
+  <!--
+    project.assets.json with its downloadDependencies taken out, for component detection to read.
+    That section lists what a PackageDownload fetched - here the SBOM tool itself - which is
+    tooling and never a dependency of the package, yet detection reports it as one.
+  -->
+  <UsingTask TaskName="WriteAssetsForSbom" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Source ParameterType="System.String" Required="true" />
+      <Destination ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var json = File.ReadAllText(Source);
+        // the array holds only flat name-and-version objects - a version is written in brackets
+        // itself, so the array is matched by its objects, not by its first ]
+        json = Regex.Replace(json, "\"downloadDependencies\"\\s*:\\s*\\[\\s*(?:\\{[^{}]*\\}\\s*,?\\s*)*\\]\\s*,\\s*", "");
+        json = Regex.Replace(json, ",\\s*\"downloadDependencies\"\\s*:\\s*\\[\\s*(?:\\{[^{}]*\\}\\s*,?\\s*)*\\]", "");
+        if (json.Contains("\"downloadDependencies\""))
+        {
+            Log.LogError("WriteAssetsForSbom: downloadDependencies is left in {0}", Source);
+            return false;
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(Destination));
+        File.WriteAllText(Destination, json);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    Every dependency the package declares in its nuspec is in its SBOM - as a package, or as the
+    external document of a package of this repository - or the pack fails. Detection reads a
+    filtered copy of the restore graph, and a filter broken by a change to that file's layout, or
+    a tool that stopped finding something, would otherwise produce an SBOM that quietly names
+    nothing.
+  -->
+  <UsingTask TaskName="CheckSbomCoversDependencies" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Nuspec ParameterType="System.String" Required="true" />
+      <Manifest ParameterType="System.String" Required="true" />
+      <Covered ParameterType="System.Boolean" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Linq" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Xml.Linq" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var manifest = File.ReadAllText(Manifest);
+        var ids = XDocument.Load(Nuspec).Descendants()
+            .Where(e => e.Name.LocalName == "dependency")
+            .Select(e => (string)e.Attribute("id"))
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList();
+        foreach (var id in ids)
+        {
+            var asPackage = Regex.IsMatch(manifest, "\"name\"\\s*:\\s*\"" + Regex.Escape(id) + "\"");
+            var asDocument = manifest.Contains("\"DocumentRef-" + id + "-");
+            if (!asPackage && !asDocument)
+            {
+                Log.LogError("The SBOM of {0} does not name {1}, which the package depends on", Path.GetFileName(Nuspec), id);
+            }
+        }
+        Covered = !Log.HasLoggedErrors;
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <PropertyGroup>
+    <_SbomTool>$(NuGetPackageRoot)microsoft.sbom.targets\$(MicrosoftSbomTargetsVersion)\tasks\net472\sbom-tool\Microsoft.Sbom.Tool.exe</_SbomTool>
+  </PropertyGroup>
+
+  <Target Name="GenerateSbomForPackage"
+          AfterTargets="Pack"
+          Condition="'$(IsPackable)' == 'true' And '$(GenerateSBOM)' == 'true'">
+    <!-- a package without its SBOM is not one to publish: refuse rather than pack it silently -->
+    <Error Condition="!Exists('$(_SbomTool)')"
+           Text="The SBOM tool is missing: $(_SbomTool). Restore first - build.cmd does." />
+
+    <PropertyGroup>
+      <_SbomPackage>$([System.IO.Path]::GetFullPath('$(PackageOutputPath)$(PackageId).$(PackageVersion).nupkg'))</_SbomPackage>
+      <_SbomUnpacked>$(SbomReferencesDirectory)package</_SbomUnpacked>
+      <_SbomComponents>$(SbomReferencesDirectory)components</_SbomComponents>
+      <_SbomExternal Condition="'$(_SbomExternalDocuments)' != ''">-er &quot;$(SbomGenerationExternalDocumentReferenceListFile)&quot;</_SbomExternal>
+    </PropertyGroup>
+
+    <RemoveDir Directories="$(_SbomUnpacked);$(_SbomComponents)" />
+    <WriteAssetsForSbom Source="$(ProjectAssetsFile)" Destination="$(_SbomComponents)\project.assets.json" />
+    <Unzip SourceFiles="$(_SbomPackage)" DestinationFolder="$(_SbomUnpacked)" OverwriteReadOnlyFiles="true" />
+    <Exec ContinueOnError="ErrorAndContinue" Command="&quot;$(_SbomTool)&quot; generate -b &quot;$(_SbomUnpacked)&quot; -bc &quot;$(_SbomComponents)&quot; -pn &quot;$(PackageId)&quot; -pv &quot;$(PackageVersion)&quot; -ps &quot;$(SbomGenerationPackageSupplier)&quot; -nsb &quot;$(SbomGenerationNamespaceBaseUri)&quot; $(_SbomExternal) -mi SPDX:2.2 -D true -V Warning">
+      <Output TaskParameter="ExitCode" PropertyName="_SbomExitCode" />
+    </Exec>
+    <CheckSbomCoversDependencies Condition="'$(_SbomExitCode)' == '0'"
+                                 ContinueOnError="ErrorAndContinue"
+                                 Nuspec="$(_SbomUnpacked)\$(PackageId).nuspec"
+                                 Manifest="$(_SbomUnpacked)\_manifest\spdx_2.2\manifest.spdx.json">
+      <Output TaskParameter="Covered" PropertyName="_SbomCovered" />
+    </CheckSbomCoversDependencies>
+    <ZipDirectory Condition="'$(_SbomCovered)' == 'true'" SourceDirectory="$(_SbomUnpacked)" DestinationFile="$(_SbomPackage)" Overwrite="true" />
+    <!-- a package nuget wrote but that got no complete SBOM is not left behind to be published -->
+    <Delete Condition="'$(_SbomCovered)' != 'true'" Files="$(_SbomPackage)" />
+    <RemoveDir Directories="$(_SbomUnpacked);$(_SbomComponents)" />
+  </Target>
+</Project>

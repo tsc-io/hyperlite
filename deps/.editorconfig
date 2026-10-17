@@ -1,0 +1,7 @@
+# Third-party code keeps its own layout; only the repository's whitespace basics are
+# left in place, and none of them are applied by format.cmd here.
+
+[*]
+trim_trailing_whitespace = false
+insert_final_newline = unset
+end_of_line = unset

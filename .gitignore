@@ -1,0 +1,40 @@
+# build output
+/build/
+/dist/
+obj/
+bin/
+TestResults/
+
+# visual studio
+.vs/
+/ipch/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.aps
+*.VC.db
+*.VC.opendb
+*.Cache
+
+# generated from Version.props by the GenerateVersionHeader target in Hyperlite.Native
+Hyperlite.version.h
+
+# unpacked from deps/sqlite/sqlite-amalgamation-*.zip by the UnpackSqliteAmalgamation
+# target. The zip is what the repository keeps; these are derived from it
+/deps/sqlite/sqlite3.c
+/deps/sqlite/sqlite3.h
+
+# kept locally as records of how decisions were measured, not published
+/doc/conformance.md
+/doc/collections.md
+/doc/performance-analysis.md
+
+# the temporary project WPF writes beside the explorer's while it builds
+*_wpftmp.csproj
+
+# databases left behind by the tests, the smoke test and the benchmarks
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

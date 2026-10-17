@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shipped inside the Hyperlite package as build\<tfm>\Hyperlite.targets and as
+  buildTransitive\<tfm>\Hyperlite.targets, so nuget imports it into the consuming project
+  automatically - into one that references only Hyperlite.Persistence as well.
+
+  It exists because the runtimes\ folder is not always honoured: a packages.config
+  project - still a real possibility on net48 - copies lib\ and nothing else, and a net48
+  PackageReference project without a RuntimeIdentifier does not copy runtimes\ either.
+  Hyperlite's loader probes the directory the assembly sits in, so the native companion
+  has to be put there explicitly. Doing it as a None item with CopyToOutputDirectory works
+  for both project styles, and copying a file that PackageReference already provided is
+  harmless.
+
+  It is never imported twice: PackageReference takes buildTransitive\ in place of build\,
+  and packages.config knows only build\.
+
+  Not used when building this repository - here the companion travels as a Content item
+  out of Hyperlite.csproj. This file is package payload only.
+
+  The file name below, as the item and as its link, has to match what the package actually
+  contains. It is written out rather than derived, because nothing in a consumer's build
+  knows this package's id - so if the native companion is ever renamed again, it has to be
+  renamed here too.
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\Hyperlite.Native.win-x64.dll">
+      <Link>Hyperlite.Native.win-x64.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
+</Project>

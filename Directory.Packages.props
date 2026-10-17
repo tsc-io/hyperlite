@@ -1,0 +1,36 @@
+﻿<Project>
+  <!--
+    Central package management: every package version this repository uses is pinned
+    here, and the projects reference packages without a version.
+
+    Why centrally: the same package is referenced by several projects - System.Buffers
+    by three, the test packages by three - and a version that drifts between them is
+    the kind of difference that only shows up as a load failure at runtime.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- library dependencies -->
+    <PackageVersion Include="System.Buffers" Version="4.6.1" />
+    <PackageVersion Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
+    <PackageVersion Include="System.Drawing.Common" Version="8.0.31" />
+    <PackageVersion Include="System.Reflection.Emit.Lightweight" Version="4.7.0" />
+  </ItemGroup>
+
+  <!--
+    The test packages stay on the last versions that still run on net7.0, the leg that executes
+    the netstandard2.0 assemblies: Microsoft.NET.Test.Sdk 17.13, because 17.14 refuses net7.0 at
+    build time, and MSTest 3.x, whose next major supports net8.0 and later only.
+    System.Configuration.ConfigurationManager, which the suites read their settings with, stays
+    on 8.x for the same reason. .github/dependabot.yml holds these back, and
+    System.Drawing.Common as well.
+  -->
+  <ItemGroup>
+    <!-- test dependencies -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageVersion Include="MSTest.TestAdapter" Version="3.11.1" />
+    <PackageVersion Include="MSTest.TestFramework" Version="3.11.1" />
+  </ItemGroup>
+</Project>

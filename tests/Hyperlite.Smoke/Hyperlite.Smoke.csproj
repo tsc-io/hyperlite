@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    End-to-end smoke test for the Hyperlite managed chain: Context, Client, Namespace,
+    Table, the three mutator kinds and the scanner, against the real Hyperlite.Native.
+
+    Deliberately not an MSTest project: it needs no test host, so it is the quickest
+    way to find out whether a change broke the chain, and it can be run straight from
+    the output directory. The full ht4n test suite port lives in Hyperlite.Test.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(HyperliteTargetFrameworks)</TargetFrameworks>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>Hyperlite.Smoke</AssemblyName>
+    <RootNamespace>Hyperlite.Smoke</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Hyperlite\Hyperlite.csproj" />
+  </ItemGroup>
+
+</Project>

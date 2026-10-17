@@ -1,0 +1,99 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Hyperlite.Serialization - the serializer out of Hyperlite.Persistence, on its own and without the
+    persistence layer, for consumers that only want to read and write the format.
+
+    It has no sources of its own: the files are compiled out of ..\Hyperlite.Persistence under the
+    HYPERLITE_SERIALIZATION define. Sharing the sources rather than duplicating them is what
+    keeps the two assemblies reading and writing the same bytes.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <RootNamespace>Hyperlite.Persistence</RootNamespace>
+    <AssemblyName>Hyperlite.Serialization</AssemblyName>
+    <AssemblyTitle>Hyperlite.Serialization</AssemblyTitle>
+    <Product>Hyperlite.Serialization</Product>
+    <Description>Serializer for Hyperlite.Persistence, without the persistence layer</Description>
+
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- the key and the signing mode come from Directory.Build.props -->
+    <SignAssembly>true</SignAssembly>
+    <DefineConstants>$(DefineConstants);HYPERLITE_SERIALIZATION</DefineConstants>
+    <NoWarn>$(NoWarn);1587</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Hyperlite.Serialization</PackageId>
+    <Title>Hyperlite.Serialization</Title>
+    <PackageDescription>Serializer for Hyperlite.Persistence, without the persistence layer. Hyperlite.Persistence contains it too, so reference one of the two, not both: the same types in both fail to compile (CS0433).</PackageDescription>
+    <PackageTags>Hyperlite serialization serializer binary</PackageTags>
+    <!-- project, license and icon urls come from Directory.Build.props, see
+         Hyperlite.Persistence.csproj -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Hyperlite.Persistence\Attributes\IgnoreAttribute.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Attributes\TransientAttribute.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\ChunkedCollection.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Extensions\DictionaryExtensions.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\Concurrent\ConcurrentTypeDictionary.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\Concurrent\ConcurrentStringDictionary.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\FlatControl.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\FlatDictionary.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\FlatHashSet.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\Concurrent\ConcurrentFlatDictionary.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\TypeComparer.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\InternalStringComparer.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\StringComparerOrdinalIgnoreCase.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\StringDictionary.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\StringComparer.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\IdentityComparer.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Collections\IdentityDictionary.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Extensions\TypeExtensions.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Extensions\ReflectionExtensions.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Logging.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Reflection\DelegateFactory.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Reflection\InspectedEnumerable.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Reflection\InspectedProperty.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Reflection\InspectedSerializable.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Reflection\Inspector.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Reflection\TypeLoader.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\ArrayFlags.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Binder.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\BinaryArrayReader.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\BinaryStreamReader.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\BufferedBinaryWriter.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\CollectionFlags.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Decoder.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\DecoderInfo.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Delegates\Deserialize.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Delegates\Encode.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Delegates\EncodeWithSerializer.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Delegates\Serialize.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Deserializer.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\DictionaryFlags.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Encoder.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\EncoderInfo.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\EncoderConfiguration.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\HeapBinaryWriter.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Resolver.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\SerializationBase.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\SerializationException.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Serializer.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\Tags.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\TypeAllowList.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\TypeSchema.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\TypeSchemaProperty.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Buffers" />
+    <PackageReference Include="System.Reflection.Emit.Lightweight" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,84 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The ht4n test suite, run against Hyperlite.
+
+    It began as ht4n's own suite, ht4n/src/ht4n.Test, carried over with only the namespace
+    renamed, Hypertable to Hyperlite: Hyperlite reproduces ht4n's api member for member, so
+    nothing else in those tests had to be adapted - the drop-in claim, tested. It has been
+    reorganised and extended since.
+
+    SQLite is the only provider, and the suite runs everything against it; the two tests
+    that ask which providers exist ask Context.HasContext.
+  -->
+
+  <PropertyGroup>
+    <TargetFrameworks>$(HyperliteTargetFrameworks)</TargetFrameworks>
+
+    <!--
+      A directory of its own under the framework directory. All three suites emit
+      testhost.dll.config, a fixed name, and they do not all want the same contents - see
+      the layout note in Directory.Build.props.
+
+      That needs a segment after the framework, which means placing the framework by hand
+      and so turning off the property that appends it. That property also governs
+      IntermediateOutputPath, so the framework has to be put back there too or every
+      framework of this project would share one obj directory.
+    -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>$(BaseOutputPath)$(TargetFramework)\$(MSBuildProjectName)\</OutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)\$(TargetFramework)\</IntermediateOutputPath>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>Hyperlite.Test</RootNamespace>
+    <AssemblyName>Hyperlite.Test</AssemblyName>
+    <AssemblyTitle>Hyperlite.Test</AssemblyTitle>
+    <Product>Hyperlite.Test</Product>
+    <Description>Hyperlite tests</Description>
+
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <IsPackable>false</IsPackable>
+
+    <!--
+      1591 - the carried over tests are not documented
+      0168/0219 - a few tests deliberately assign without reading
+    -->
+    <NoWarn>$(NoWarn);1591;0168;0219</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="conf\TestConfiguration.cfg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Hyperlite\Hyperlite.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="MSTest.TestAdapter" />
+    <PackageReference Include="MSTest.TestFramework" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" />
+  </ItemGroup>
+
+  <!--
+    On .NET Core the test host reads its own config rather than the test assembly's, so
+    the app settings have to be copied under that name as well - the same trick
+    ht4n.Test used.
+
+    The native companion needs no step here: it travels as a Content item out of Hyperlite
+    and arrives through the project reference.
+  -->
+  <Target Name="CopyTestHostConfig" AfterTargets="Build" Condition="'$(TargetFramework)' != 'net48'">
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll.config"
+          DestinationFiles="$(OutputPath)testhost.dll.config"
+          Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
+  </Target>
+
+</Project>

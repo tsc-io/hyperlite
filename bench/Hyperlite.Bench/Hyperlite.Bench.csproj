@@ -1,0 +1,60 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Hyperlite benchmark harness. Run the executable with the help switch for the
+    options it takes.
+
+    Three frameworks, and that is the point: the same cases on several runtimes is how a
+    difference gets attributed to the runtime rather than to the library: net48 the oldest
+    runtime the libraries ship for, net10.0 the newest.
+
+    Not built on BenchmarkDotNet, deliberately - it measures wall clock and has no
+    cpu-time column, and cpu time is the only comparable number on a machine that is
+    doing anything else. See the header comment in Bench.cs.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net48;net8.0;net10.0</TargetFrameworks>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>Hyperlite.Bench</AssemblyName>
+    <RootNamespace>Hyperlite.Bench</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The pinned corpus, shared with the two test projects so that the printer here and
+      the fixture there cannot drift. See the note at the top of the file.
+    -->
+    <Compile Include="..\..\tests\Hyperlite.Persistence.Test\Serialization\FormatCorpus.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The flat collections and the comparers the collections suite needs. Internal, and
+      there is no InternalsVisibleTo anywhere here, so the shipped sources are compiled
+      in: the source measured is the source shipped, not a copy.
+    -->
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\FlatControl.cs" Link="Shipped\FlatControl.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\FlatDictionary.cs" Link="Shipped\FlatDictionary.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\FlatHashSet.cs" Link="Shipped\FlatHashSet.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\Concurrent\ConcurrentFlatDictionary.cs" Link="Shipped\ConcurrentFlatDictionary.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\TypeComparer.cs" Link="Shipped\TypeComparer.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\IdentityComparer.cs" Link="Shipped\IdentityComparer.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\StringComparer.cs" Link="Shipped\StringComparer.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\InternalStringComparer.cs" Link="Shipped\InternalStringComparer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Hyperlite\Hyperlite.csproj" />
+
+    <!-- the serialization suite measures Hyperlite.Persistence's serializer directly,
+         with no database and no entity manager involved -->
+    <ProjectReference Include="..\..\src\Hyperlite.Persistence\Hyperlite.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

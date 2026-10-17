@@ -1,0 +1,110 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.10.12224.181
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{1A1C3F91-0D5E-4B62-9C84-72E5A1D0B3F6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{6E8D3F27-4B15-49CA-8D72-1A5B9E0C4F63}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "bench", "bench", "{2F7A4C08-91B6-4D53-8E10-5C63B9A2D74E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hyperlite.Native", "src\Hyperlite.Native\Hyperlite.Native.vcxproj", "{7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hyperlite", "src\Hyperlite\Hyperlite.csproj", "{5B2F8A41-9C3D-4E7B-8A16-2D9F4C7E1B33}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14} = {7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hyperlite.Persistence", "src\Hyperlite.Persistence\Hyperlite.Persistence.csproj", "{492EC4F9-6694-48FE-99BF-E773D0B664DD}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hyperlite.Serialization", "src\Hyperlite.Serialization\Hyperlite.Serialization.csproj", "{20B09F8E-7106-49D4-A125-54B05719B3A0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hyperlite.Explorer", "src\Hyperlite.Explorer\Hyperlite.Explorer.csproj", "{54AB43C3-C8F5-41A7-A2DC-9D6AD087F1F3}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hyperlite.Native.Test", "tests\Hyperlite.Native.Test\Hyperlite.Native.Test.vcxproj", "{3E9B77D1-58AC-4C62-9B0E-1F4A6D3C82B7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14} = {7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hyperlite.Smoke", "tests\Hyperlite.Smoke\Hyperlite.Smoke.csproj", "{9C4A2E51-77B3-4D68-B1FA-8E3C05D9A742}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hyperlite.Test", "tests\Hyperlite.Test\Hyperlite.Test.csproj", "{2D7F5C18-4A93-4E20-B6D1-7F8A93C4E5B2}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hyperlite.Persistence.Test", "tests\Hyperlite.Persistence.Test\Hyperlite.Persistence.Test.csproj", "{966986C3-4B6F-40B9-B2D7-26100A746507}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hyperlite.Serialization.Test", "tests\Hyperlite.Serialization.Test\Hyperlite.Serialization.Test.csproj", "{99FB249E-3796-4731-8AA9-2E7623F96B65}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hyperlite.Bench", "bench\Hyperlite.Bench\Hyperlite.Bench.csproj", "{4E8B1D66-92C7-4A3F-8B15-6D204FA7E9C3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14}.Debug|x64.ActiveCfg = Debug|x64
+		{7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14}.Debug|x64.Build.0 = Debug|x64
+		{7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14}.Release|x64.ActiveCfg = Release|x64
+		{7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14}.Release|x64.Build.0 = Release|x64
+		{5B2F8A41-9C3D-4E7B-8A16-2D9F4C7E1B33}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5B2F8A41-9C3D-4E7B-8A16-2D9F4C7E1B33}.Debug|x64.Build.0 = Debug|Any CPU
+		{5B2F8A41-9C3D-4E7B-8A16-2D9F4C7E1B33}.Release|x64.ActiveCfg = Release|Any CPU
+		{5B2F8A41-9C3D-4E7B-8A16-2D9F4C7E1B33}.Release|x64.Build.0 = Release|Any CPU
+		{492EC4F9-6694-48FE-99BF-E773D0B664DD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{492EC4F9-6694-48FE-99BF-E773D0B664DD}.Debug|x64.Build.0 = Debug|Any CPU
+		{492EC4F9-6694-48FE-99BF-E773D0B664DD}.Release|x64.ActiveCfg = Release|Any CPU
+		{492EC4F9-6694-48FE-99BF-E773D0B664DD}.Release|x64.Build.0 = Release|Any CPU
+		{20B09F8E-7106-49D4-A125-54B05719B3A0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{20B09F8E-7106-49D4-A125-54B05719B3A0}.Debug|x64.Build.0 = Debug|Any CPU
+		{20B09F8E-7106-49D4-A125-54B05719B3A0}.Release|x64.ActiveCfg = Release|Any CPU
+		{20B09F8E-7106-49D4-A125-54B05719B3A0}.Release|x64.Build.0 = Release|Any CPU
+		{54AB43C3-C8F5-41A7-A2DC-9D6AD087F1F3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{54AB43C3-C8F5-41A7-A2DC-9D6AD087F1F3}.Debug|x64.Build.0 = Debug|Any CPU
+		{54AB43C3-C8F5-41A7-A2DC-9D6AD087F1F3}.Release|x64.ActiveCfg = Release|Any CPU
+		{54AB43C3-C8F5-41A7-A2DC-9D6AD087F1F3}.Release|x64.Build.0 = Release|Any CPU
+		{3E9B77D1-58AC-4C62-9B0E-1F4A6D3C82B7}.Debug|x64.ActiveCfg = Debug|x64
+		{3E9B77D1-58AC-4C62-9B0E-1F4A6D3C82B7}.Debug|x64.Build.0 = Debug|x64
+		{3E9B77D1-58AC-4C62-9B0E-1F4A6D3C82B7}.Release|x64.ActiveCfg = Release|x64
+		{3E9B77D1-58AC-4C62-9B0E-1F4A6D3C82B7}.Release|x64.Build.0 = Release|x64
+		{9C4A2E51-77B3-4D68-B1FA-8E3C05D9A742}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9C4A2E51-77B3-4D68-B1FA-8E3C05D9A742}.Debug|x64.Build.0 = Debug|Any CPU
+		{9C4A2E51-77B3-4D68-B1FA-8E3C05D9A742}.Release|x64.ActiveCfg = Release|Any CPU
+		{9C4A2E51-77B3-4D68-B1FA-8E3C05D9A742}.Release|x64.Build.0 = Release|Any CPU
+		{2D7F5C18-4A93-4E20-B6D1-7F8A93C4E5B2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2D7F5C18-4A93-4E20-B6D1-7F8A93C4E5B2}.Debug|x64.Build.0 = Debug|Any CPU
+		{2D7F5C18-4A93-4E20-B6D1-7F8A93C4E5B2}.Release|x64.ActiveCfg = Release|Any CPU
+		{2D7F5C18-4A93-4E20-B6D1-7F8A93C4E5B2}.Release|x64.Build.0 = Release|Any CPU
+		{966986C3-4B6F-40B9-B2D7-26100A746507}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{966986C3-4B6F-40B9-B2D7-26100A746507}.Debug|x64.Build.0 = Debug|Any CPU
+		{966986C3-4B6F-40B9-B2D7-26100A746507}.Release|x64.ActiveCfg = Release|Any CPU
+		{966986C3-4B6F-40B9-B2D7-26100A746507}.Release|x64.Build.0 = Release|Any CPU
+		{99FB249E-3796-4731-8AA9-2E7623F96B65}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{99FB249E-3796-4731-8AA9-2E7623F96B65}.Debug|x64.Build.0 = Debug|Any CPU
+		{99FB249E-3796-4731-8AA9-2E7623F96B65}.Release|x64.ActiveCfg = Release|Any CPU
+		{99FB249E-3796-4731-8AA9-2E7623F96B65}.Release|x64.Build.0 = Release|Any CPU
+		{4E8B1D66-92C7-4A3F-8B15-6D204FA7E9C3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4E8B1D66-92C7-4A3F-8B15-6D204FA7E9C3}.Debug|x64.Build.0 = Debug|Any CPU
+		{4E8B1D66-92C7-4A3F-8B15-6D204FA7E9C3}.Release|x64.ActiveCfg = Release|Any CPU
+		{4E8B1D66-92C7-4A3F-8B15-6D204FA7E9C3}.Release|x64.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14} = {1A1C3F91-0D5E-4B62-9C84-72E5A1D0B3F6}
+		{5B2F8A41-9C3D-4E7B-8A16-2D9F4C7E1B33} = {1A1C3F91-0D5E-4B62-9C84-72E5A1D0B3F6}
+		{492EC4F9-6694-48FE-99BF-E773D0B664DD} = {1A1C3F91-0D5E-4B62-9C84-72E5A1D0B3F6}
+		{20B09F8E-7106-49D4-A125-54B05719B3A0} = {1A1C3F91-0D5E-4B62-9C84-72E5A1D0B3F6}
+		{54AB43C3-C8F5-41A7-A2DC-9D6AD087F1F3} = {1A1C3F91-0D5E-4B62-9C84-72E5A1D0B3F6}
+		{3E9B77D1-58AC-4C62-9B0E-1F4A6D3C82B7} = {6E8D3F27-4B15-49CA-8D72-1A5B9E0C4F63}
+		{9C4A2E51-77B3-4D68-B1FA-8E3C05D9A742} = {6E8D3F27-4B15-49CA-8D72-1A5B9E0C4F63}
+		{2D7F5C18-4A93-4E20-B6D1-7F8A93C4E5B2} = {6E8D3F27-4B15-49CA-8D72-1A5B9E0C4F63}
+		{966986C3-4B6F-40B9-B2D7-26100A746507} = {6E8D3F27-4B15-49CA-8D72-1A5B9E0C4F63}
+		{99FB249E-3796-4731-8AA9-2E7623F96B65} = {6E8D3F27-4B15-49CA-8D72-1A5B9E0C4F63}
+		{4E8B1D66-92C7-4A3F-8B15-6D204FA7E9C3} = {2F7A4C08-91B6-4D53-8E10-5C63B9A2D74E}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C7F41A82-3D96-4E58-9B24-5F81D6A03E77}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,89 @@
+# Builds, tests and packs on every push to main and every pull request, with the same three
+# scripts a developer runs. The packages are kept as an artifact; nothing is published here -
+# release.yml calls this workflow and publishes what it produced.
+#
+# Actions are pinned to a commit, not a tag: a tag can be moved, a commit cannot. The comment
+# beside each says which release the commit is.
+
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    # Visual Studio 2026: its clang-format is the one .clang-format is written for - VS 2022's
+    # is clang-format 19, which rejects it - and its msbuild supports net10.0, which VS 2022's
+    # does not. The vcxprojs' v143 toolset comes with the runner image.
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 60
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # net7.0 is a test leg only; net8.0 and net10.0 are built and tested. The SDK itself is
+      # the one global.json selects.
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: |
+            7.0.x
+            8.0.x
+            10.0.x
+
+      - name: Style
+        shell: cmd
+        run: format.cmd check
+
+      - name: Build
+        shell: cmd
+        run: build.cmd Release
+
+      - name: Test
+        shell: cmd
+        run: test.cmd Release
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: test-results
+          path: build/Release/*/TestResults/*.trx
+          if-no-files-found: ignore
+
+      - name: Pack
+        shell: cmd
+        run: pack.cmd Release
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: packages
+          path: dist/Release/*.nupkg
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: explorer
+          path: dist/Release/Hyperlite.Explorer.*.zip
+          if-no-files-found: error
+
+      # the managed symbols are embedded in the assemblies; the native ones are not
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-symbols
+          path: dist/Release/runtimes/win-x64/native/Hyperlite.Native.win-x64.pdb
+          if-no-files-found: error

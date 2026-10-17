@@ -1,0 +1,288 @@
+﻿<Project>
+  <!--
+    Repository wide defaults. msbuild imports this file into every project it builds,
+    csproj and vcxproj alike, before the project body is read.
+
+    What belongs here: anything that would otherwise be repeated in more than one
+    project - the version, where output goes, the framework set, the shared package
+    metadata. What does not: anything a single project needs, which stays in that
+    project so it can be found where it applies.
+  -->
+
+  <PropertyGroup>
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+
+    <!--
+      Configuration has no value yet at this point when it was not passed in: the SDK
+      defaults it later, and the C++ targets later still, both after this file has been
+      read. The output paths below are built from it, so it gets its default here.
+    -->
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+
+    <!--
+      The name the output directories are keyed on: the directory the project sits in,
+      not $(MSBuildProjectName).
+
+      They are the same for every project here, and deliberately so. WPF compiles its
+      markup by generating a temporary project - Hyperlite.Explorer_a1b2c3d4_wpftmp.csproj -
+      next to the real one and building that, and it re-reads this file. Keyed on the
+      project name, the temporary project would get intermediate directories of its own,
+      with no restore output in them, and the markup compilation would fail on every
+      reference that came from a package. Keyed on the directory, it shares the real
+      project's, which is where its assets already are.
+    -->
+    <ProjectDirectoryName>$([System.IO.Path]::GetFileName($(MSBuildProjectDirectory)))</ProjectDirectoryName>
+  </PropertyGroup>
+
+  <Import Project="$(RepoRoot)Version.props" />
+
+  <!--
+    Output layout. The two directories the repository keeps outside the project trees:
+
+      dist\<configuration>\<tfm>                     every deliverable for that framework,
+                                                     side by side
+      dist\<configuration>\<tfm>\<suite>             the test assemblies
+      dist\<configuration>\*.nupkg                   the nuget packages
+      dist\<configuration>\runtimes\win-x64\native   the native companion, laid out as a
+                                                     package expects to find it
+      build\<project>                                intermediate output
+      build\<configuration>\<tfm>\TestResults        test results
+      build\<configuration>\scratch                 working directory for the native test,
+                                                     the smoke harness and the two suites
+                                                     that write databases relative to it
+
+    dist holds build output and nothing else - no test results, and no databases left by a
+    run. Both used to land there, the databases because test.cmd ran the executables with
+    a framework's output directory as the working directory.
+
+    One directory per framework rather than one per project, so that everything built for
+    a framework sits together and a consumer of the output does not have to know which
+    project produced what.
+
+    The suites are the exception and keep a directory each. All three emit
+    testhost.dll.config, a fixed filename carrying their app settings, and
+    Hyperlite.Test's differs from the other two - it connects through the legacy Ht4n.
+    prefixed key on purpose, as the only live coverage of that alias. Sharing a directory
+    would leave whichever suite built last holding the file, and the loser would run green
+    against the wrong connection string rather than fail.
+
+    The framework segment is appended by the sdk, from BaseOutputPath alone. Do not turn
+    AppendTargetFrameworkToOutputPath off to control it: that property also governs
+    IntermediateOutputPath, so switching it off repo-wide puts every framework of a
+    project in one obj directory, where the reference assemblies under obj\ref overwrite
+    each other and the build fails with CS0006 on whichever project loses. The three
+    suites do turn it off, and each restores the framework in IntermediateOutputPath by
+    hand for exactly that reason.
+  -->
+  <PropertyGroup>
+    <BaseOutputPath>$(RepoRoot)dist\$(Configuration)\</BaseOutputPath>
+    <OutputPath>$(BaseOutputPath)</OutputPath>
+    <BaseIntermediateOutputPath>$(RepoRoot)build\$(ProjectDirectoryName)\</BaseIntermediateOutputPath>
+    <PackageOutputPath>$(RepoRoot)dist\$(Configuration)\</PackageOutputPath>
+
+    <!--
+      The native companion, produced by src\Hyperlite.Native and consumed by src\Hyperlite.
+      Named here because both ends need to agree on it, and because the path shape is
+      the one the package uses, runtimes\<rid>\native.
+    -->
+    <HyperliteRid Condition="'$(HyperliteRid)' == ''">win-x64</HyperliteRid>
+    <NativeOutputPath>$(RepoRoot)dist\$(Configuration)\runtimes\$(HyperliteRid)\native\</NativeOutputPath>
+    <NativeCompanion>$(NativeOutputPath)Hyperlite.Native.$(HyperliteRid).dll</NativeCompanion>
+  </PropertyGroup>
+
+  <!--
+    The framework set, in one place so the libraries, the tests and the packages cannot
+    drift apart. net48 is still first: it is what the oldest integrators build against.
+  -->
+  <PropertyGroup>
+    <!--
+      Three lists, because shipping and testing want different things, and the explorer
+      wants the desktop frameworks.
+
+      HyperliteLibraryTargetFrameworks is what the two libraries build and pack. It is
+      short on purpose: the conditional code divides at net8.0 and nowhere else - SIMD in
+      the flat tables, the string map's hash - so net8.0 and net10.0 compile the same code
+      and differ only in the framework they declare. The two LTS releases each get an
+      assembly built against them, and net9.0 resolves the net8.0 one. net48 stays because
+      its conditional code is a measured win for its own runtime - Utf8's hand written ascii
+      widening - and netstandard2.0 catches everything else, from net461 and netcoreapp2.0
+      upwards.
+
+      HyperliteTargetFrameworks is what the suites and the smoke test run on, and it is
+      now one leg per shipped assembly, exactly:
+
+        net48    the net48 assembly, and its hand written ascii decode
+        net7.0   the netstandard2.0 assembly - see below
+        net8.0   the net8.0 assembly
+        net10.0  the net10.0 assembly
+
+      What no leg covers is an assembly running on a runtime newer than the one it targets
+      - a net9.0 consumer resolving the net8.0 assembly, say. That is ordinary .NET forward
+      compatibility rather than anything this code does, so it is left to the platform.
+
+      net7.0 is there because it is the newest runtime that cannot resolve the net8.0
+      assembly, so it resolves the netstandard2.0 one - the only way to execute that
+      assembly from here. It matters because its interop differs: native callbacks go
+      through Marshal.GetFunctionPointerForDelegate rather than function pointers, and on
+      CoreCLR nothing else covers that combination. net48 covers delegate marshalling on
+      .NET Framework and the other two cover function pointers on CoreCLR, so without this
+      leg the assembly shipped to net472 and net5-net7 consumers would never be run.
+
+      Out of support as a target, which is why the check below is off: that warning is
+      right about net7.0 as somewhere to ship and beside the point for a leg whose job is
+      to be old enough to resolve netstandard2.0. Off for that leg alone, so that any other
+      framework going out of support still warns.
+    -->
+    <HyperliteLibraryTargetFrameworks>net48;net8.0;net10.0;netstandard2.0</HyperliteLibraryTargetFrameworks>
+    <HyperliteTargetFrameworks>net48;net7.0;net8.0;net10.0</HyperliteTargetFrameworks>
+    <CheckEolTargetFramework Condition="'$(TargetFramework)' == 'net7.0'">false</CheckEolTargetFramework>
+    <HyperliteWindowsTargetFrameworks>net48;net8.0-windows;net10.0-windows</HyperliteWindowsTargetFrameworks>
+  </PropertyGroup>
+
+  <!-- Shared defaults for the managed projects; the C++ projects ignore all of it. -->
+  <PropertyGroup>
+    <LangVersion>12</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <Prefer32Bit>false</Prefer32Bit>
+
+    <!-- the layout rules of .editorconfig are checked by the compiler, so a change that
+         breaks them warns in every build, not only in an IDE that happens to look;
+         format.cmd fixes what it reports -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- symbols inside the assembly: no .pdb to stage, lose or mismatch, and a
+         consumer gets file and line in a stack trace with nothing to configure -->
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <!--
+    Package metadata common to every package this repository publishes. Per package
+    values - id, title, description - stay in the project.
+  -->
+  <PropertyGroup>
+    <Authors>$(CopyrightHolder)</Authors>
+    <Company>$(CopyrightHolder)</Company>
+
+    <!--
+      One signing key for the product, fully signed.
+
+      It replaced the predecessors' keys - ht4n2.snk, ht4o.snk and ht4n.snk, two of
+      them duplicated under tests\ - each named by an obsolete AssemblyKeyFile attribute
+      in an AssemblyInfo.cs. Renaming the assemblies changed their identity anyway, so
+      this was the moment to collapse them.
+
+      Fully signed rather than delay signed: ht4n2 was delay signed to line its identity
+      up with ht4n's, and neither ht4n nor that identity is part of this repository. A
+      delay signed assembly also needs verification skipped on every machine that loads
+      it, which this one does not.
+
+      Projects opt in with SignAssembly; the test assemblies do not, because nothing
+      references them and there is no InternalsVisibleTo anywhere here.
+    -->
+    <AssemblyOriginatorKeyFile>$(RepoRoot)src\Hyperlite.snk</AssemblyOriginatorKeyFile>
+    <DelaySign>false</DelaySign>
+    <!--
+      The repository is where the source lives, and nuget shows it as the package's source
+      link. It is set explicitly, so that a package names the public repository whatever
+      remote the clone it was built from has. The project url is the same page: there is no
+      separate site.
+
+      The icon is the explorer's, its 128 pixel frame, and the readme is a few lines -
+      both in src\package, and packed at the package root by the item group below.
+
+      Release builds are ContinuousIntegrationBuild, so the embedded symbols record source
+      paths as /_/ rather than this machine's, and the SDK's own SourceLink maps them to
+      the commit on GitHub. That needs the commit to be on GitHub, which is why packages are
+      published from CI, see .github/workflows/release.yml.
+
+      The license is an SPDX expression rather than a url or a packaged file: nuget shows
+      the expression without a download, and LICENSE.md at the repository root is then the
+      one copy rather than one of two that can disagree.
+    -->
+    <PackageProjectUrl>https://github.com/tsc-io/hyperlite</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/tsc-io/hyperlite</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>See https://github.com/tsc-io/hyperlite/blob/main/CHANGELOG.md</PackageReleaseNotes>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <ContinuousIntegrationBuild Condition="'$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
+    <!--
+      A software bill of materials in every package, SPDX 2.2, written by Microsoft.Sbom.Targets
+      at _manifest\spdx_2.2\manifest.spdx.json when it packs: the package's own files with their
+      hashes, and the packages it depends on. The generator is fetched with a PackageDownload
+      and run by Directory.Build.targets - see there for why not through a PackageReference.
+    -->
+    <GenerateSBOM>true</GenerateSBOM>
+    <!-- bumped by hand: dependabot reads package references, and this feeds a PackageDownload -->
+    <MicrosoftSbomTargetsVersion>4.1.13</MicrosoftSbomTargetsVersion>
+    <SbomGenerationPackageSupplier>$(CopyrightHolder)</SbomGenerationPackageSupplier>
+    <SbomGenerationNamespaceBaseUri>https://github.com/tsc-io/hyperlite</SbomGenerationNamespaceBaseUri>
+    <!-- the SPDX documents the SBOM references - outside the folder component detection scans -->
+    <SbomReferencesDirectory>$(RepoRoot)build\sbom\$(MSBuildProjectName)\</SbomReferencesDirectory>
+    <SbomGenerationExternalDocumentReferenceListFile>$(SbomReferencesDirectory)references.txt</SbomGenerationExternalDocumentReferenceListFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <IncludeSymbols>false</IncludeSymbols>
+    <!-- checks that every framework in a package offers the same api, so that a consumer
+         moving between frameworks does not lose a member; from the second release on, a
+         PackageValidationBaselineVersion compares against the last release as well -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <!--
+    Items are evaluated after every property, so IsPackable - set in the project, after
+    this file - is already known here, and only the packed projects carry the two files.
+  -->
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <PackageDownload Include="Microsoft.Sbom.Targets" Version="[$(MicrosoftSbomTargetsVersion)]" />
+    <None Include="$(RepoRoot)src\package\icon.png" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(RepoRoot)src\package\README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+  <!--
+    The documents a package's SBOM references, by an external document reference each, and
+    packed under sbom\ so that every reference resolves inside the package:
+
+    - SbomExternalDocument items a project declares - sqlite's, in Hyperlite
+    - a document for each package of this repository it depends on. Within the repository
+      that is a project reference, which the NuGet detectors do not report, so it is
+      described here - name, version, purl. A project's file name is its package id.
+
+    The generator takes them through ExternalDocumentListFile, one path a line.
+  -->
+  <Target Name="DescribeReferencedPackages"
+          BeforeTargets="_IntermediatePack"
+          Condition="'$(IsPackable)' == 'true' And '$(GenerateSBOM)' == 'true'">
+    <ItemGroup>
+      <_ReferencedPackage Include="@(ProjectReference->'%(Filename)')" Condition="'%(ProjectReference.Extension)' == '.csproj'" />
+      <_ReferencedPackageSbom Include="@(_ReferencedPackage->'$(SbomReferencesDirectory)%(Identity).spdx.json')" PackageId="%(Identity)" />
+    </ItemGroup>
+    <PropertyGroup>
+      <!-- when this package is made, as the SBOM it is referenced from says of itself -->
+      <_SbomCreated>$([System.DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))</_SbomCreated>
+    </PropertyGroup>
+    <MakeDir Directories="$(SbomReferencesDirectory)" />
+    <WriteLinesToFile Condition="'@(_ReferencedPackageSbom)' != ''"
+                      File="%(_ReferencedPackageSbom.Identity)"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true"
+                      Lines="{ &quot;spdxVersion&quot;: &quot;SPDX-2.2&quot;, &quot;dataLicense&quot;: &quot;CC0-1.0&quot;, &quot;SPDXID&quot;: &quot;SPDXRef-DOCUMENT&quot;, &quot;name&quot;: &quot;%(_ReferencedPackageSbom.PackageId) $(PackageVersion)&quot;, &quot;documentNamespace&quot;: &quot;$(SbomGenerationNamespaceBaseUri)/%(_ReferencedPackageSbom.PackageId)/$(PackageVersion)/reference&quot;, &quot;creationInfo&quot;: { &quot;created&quot;: &quot;$(_SbomCreated)&quot;, &quot;creators&quot;: [ &quot;Organization: $(SbomGenerationPackageSupplier)&quot; ] }, &quot;documentDescribes&quot;: [ &quot;SPDXRef-Package&quot; ], &quot;packages&quot;: [ { &quot;name&quot;: &quot;%(_ReferencedPackageSbom.PackageId)&quot;, &quot;SPDXID&quot;: &quot;SPDXRef-Package&quot;, &quot;versionInfo&quot;: &quot;$(PackageVersion)&quot;, &quot;downloadLocation&quot;: &quot;$(RepositoryUrl)&quot;, &quot;filesAnalyzed&quot;: false, &quot;licenseConcluded&quot;: &quot;$(PackageLicenseExpression)&quot;, &quot;licenseDeclared&quot;: &quot;$(PackageLicenseExpression)&quot;, &quot;copyrightText&quot;: &quot;$(Copyright)&quot;, &quot;supplier&quot;: &quot;Organization: $(SbomGenerationPackageSupplier)&quot;, &quot;externalRefs&quot;: [ { &quot;referenceCategory&quot;: &quot;PACKAGE-MANAGER&quot;, &quot;referenceType&quot;: &quot;purl&quot;, &quot;referenceLocator&quot;: &quot;pkg:nuget/%(_ReferencedPackageSbom.PackageId)%40$(PackageVersion)&quot; } ] } ], &quot;relationships&quot;: [ { &quot;spdxElementId&quot;: &quot;SPDXRef-DOCUMENT&quot;, &quot;relationshipType&quot;: &quot;DESCRIBES&quot;, &quot;relatedSpdxElement&quot;: &quot;SPDXRef-Package&quot; } ] }" />
+    <ItemGroup>
+      <_SbomExternalDocument Include="@(SbomExternalDocument->'%(FullPath)');@(_ReferencedPackageSbom)" />
+      <None Include="@(_SbomExternalDocument)" Pack="true" PackagePath="sbom\" Visible="false" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_SbomExternalDocuments>@(_SbomExternalDocument)</_SbomExternalDocuments>
+    </PropertyGroup>
+    <!-- by their place inside the package, unpacked for the generator: a path outside it would
+         be recorded as a file the document is described by -->
+    <WriteLinesToFile Condition="'$(_SbomExternalDocuments)' != ''"
+                      File="$(SbomGenerationExternalDocumentReferenceListFile)"
+                      Lines="@(_SbomExternalDocument->'$(SbomReferencesDirectory)package\sbom\%(Filename)%(Extension)')"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+  </Target>
+</Project>

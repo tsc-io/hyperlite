@@ -1,0 +1,33 @@
+# Proposes updates for the pinned actions and the centrally managed packages, once a week.
+#
+# Held back, because net7.0 is the leg that runs the netstandard2.0 assemblies - see
+# Directory.Packages.props: Microsoft.NET.Test.Sdk 17.14 refuses net7.0 at build time, MSTest 4
+# and System.Configuration.ConfigurationManager 9 support net8.0 and later only.
+# System.Drawing.Common, the explorer's, stays on the line of the oldest .NET it targets.
+#
+# Not seen here: Microsoft.Sbom.Targets, the SBOM generator, whose version is a property in
+# Directory.Build.props feeding a PackageDownload - it is bumped by hand.
+
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: Microsoft.NET.Test.Sdk
+        versions: [ ">= 17.14" ]
+      - dependency-name: MSTest.TestAdapter
+        versions: [ ">= 4.0" ]
+      - dependency-name: MSTest.TestFramework
+        versions: [ ">= 4.0" ]
+      - dependency-name: System.Configuration.ConfigurationManager
+        versions: [ ">= 9.0" ]
+      - dependency-name: System.Drawing.Common
+        versions: [ ">= 9.0" ]

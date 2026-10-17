@@ -1,0 +1,87 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Hyperlite.Explorer - a WPF front end that browses a database through the namespace
+    Hyperlite api.
+
+    Carried over from ht4n: it used to build against ht4n, the C++/CLI client, and now
+    builds against Hyperlite. Apart from the renamed namespaces no source change was needed,
+    which is the same drop-in claim the test suites make.
+
+    The desktop frameworks need the -windows flavour from net5 onwards; net48 does not
+    have one.
+  -->
+
+  <PropertyGroup>
+    <TargetFrameworks>$(HyperliteWindowsTargetFrameworks)</TargetFrameworks>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>Hyperlite.Explorer</RootNamespace>
+    <AssemblyName>Hyperlite.Explorer</AssemblyName>
+    <AssemblyTitle>Hyperlite.Explorer</AssemblyTitle>
+    <Product>Hyperlite.Explorer</Product>
+    <Description>Hyperlite Explorer</Description>
+    <ApplicationIcon>Resources\hyperlite.ico</ApplicationIcon>
+    <IsPackable>false</IsPackable>
+
+    <!-- the key and the signing mode come from Directory.Build.props -->
+    <SignAssembly>true</SignAssembly>
+
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\ActiveShadowBottom.png" />
+    <Resource Include="Resources\ActiveShadowLeft.png" />
+    <Resource Include="Resources\ActiveShadowRight.png" />
+    <Resource Include="Resources\ActiveShadowTop.png" />
+    <Resource Include="Resources\InactiveShadowBottom.png" />
+    <Resource Include="Resources\InactiveShadowLeft.png" />
+    <Resource Include="Resources\InactiveShadowRight.png" />
+    <Resource Include="Resources\InactiveShadowTop.png" />
+    <Resource Include="Resources\hyperlite.ico" />
+    <Resource Include="Resources\Mark.png" />
+    <Resource Include="Resources\Hyperlite.banner.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hyperlite\Hyperlite.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Configuration.ConfigurationManager" />
+    <PackageReference Include="System.Drawing.Common" />
+  </ItemGroup>
+
+  <!--
+    PackZip - the explorer as a plain zip beside the packages, named as they are:
+    Hyperlite.Explorer.<version>.zip, one folder per framework as a package's lib does, and
+    LICENSE.md and THIRD-PARTY-NOTICES.md at the root.
+
+    Each framework is published, not copied out of its output directory: net48 shares that
+    directory with the benchmark and the smoke harness, and publishing yields exactly the
+    explorer's own files - its assemblies, its dependencies and the native companion.
+    NoBuild, because pack.cmd runs only after a build that succeeded.
+
+    The version is the package's, PackageVersion from Version.props, so 2026.10.0.0 names
+    Hyperlite.Explorer.2026.10.0.zip as it names Hyperlite.2026.10.0.nupkg.
+  -->
+  <Target Name="PackZip">
+    <ItemGroup>
+      <_ExplorerZipFramework Include="$(TargetFrameworks)" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_ExplorerZipVersion>$(PackageVersion)</_ExplorerZipVersion>
+      <_ExplorerZipStaging>$(BaseIntermediateOutputPath)zip\$(Configuration)\</_ExplorerZipStaging>
+      <_ExplorerZipFile>$(PackageOutputPath)$(AssemblyName).$(_ExplorerZipVersion).zip</_ExplorerZipFile>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_ExplorerZipStaging)" />
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+             Targets="Publish"
+             Properties="TargetFramework=%(_ExplorerZipFramework.Identity);NoBuild=true;PublishReferencesDocumentationFiles=false;PublishDir=$(_ExplorerZipStaging)%(_ExplorerZipFramework.Identity)\" />
+    <!-- the license and the notices for what is redistributed travel with the binaries -->
+    <Copy SourceFiles="$(RepoRoot)LICENSE.md;$(MSBuildProjectDirectory)\THIRD-PARTY-NOTICES.md" DestinationFolder="$(_ExplorerZipStaging)" />
+    <ZipDirectory SourceDirectory="$(_ExplorerZipStaging)" DestinationFile="$(_ExplorerZipFile)" Overwrite="true" />
+    <Message Importance="high" Text="$(AssemblyName) -> $(_ExplorerZipFile)" />
+  </Target>
+</Project>

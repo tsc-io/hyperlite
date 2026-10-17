@@ -1,0 +1,76 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Hyperlite.Persistence test suite. Reaches Hyperlite transitively through Hyperlite.Persistence, so there is no
+    reference to a client library here any more - that used to be the UseHt4n2 switch.
+  -->
+
+  <PropertyGroup>
+    <TargetFrameworks>$(HyperliteTargetFrameworks)</TargetFrameworks>
+
+    <!--
+      A directory of its own under the framework directory. All three suites emit
+      testhost.dll.config, a fixed name, and they do not all want the same contents - see
+      the layout note in Directory.Build.props.
+
+      That needs a segment after the framework, which means placing the framework by hand
+      and so turning off the property that appends it. That property also governs
+      IntermediateOutputPath, so the framework has to be put back there too or every
+      framework of this project would share one obj directory.
+    -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>$(BaseOutputPath)$(TargetFramework)\$(MSBuildProjectName)\</OutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)\$(TargetFramework)\</IntermediateOutputPath>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>Hyperlite.Persistence.Test</RootNamespace>
+    <AssemblyName>Hyperlite.Persistence.Test</AssemblyName>
+    <AssemblyTitle>Hyperlite.Persistence.Test</AssemblyTitle>
+    <Product>Hyperlite.Persistence.Test</Product>
+    <Description>Hyperlite.Persistence tests</Description>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);1587</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The expected serialized form, read by TestFormatCompatibility. Embedded rather
+      than copied so the fixture cannot be run against a stale file on disk.
+    -->
+    <EmbeddedResource Include="Serialization\format-golden.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The flat collections are internal and nothing here has InternalsVisibleTo, so
+      TestFlatCollections compiles the shipped sources in. Built for each framework
+      below, which is what covers both group implementations: SWAR on net48 and net7.0,
+      Vector128 on net8.0 and net10.0.
+    -->
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\FlatControl.cs" Link="Collections\Shipped\FlatControl.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\FlatDictionary.cs" Link="Collections\Shipped\FlatDictionary.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\FlatHashSet.cs" Link="Collections\Shipped\FlatHashSet.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\Concurrent\ConcurrentFlatDictionary.cs" Link="Collections\Shipped\ConcurrentFlatDictionary.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\TypeComparer.cs" Link="Collections\Shipped\TypeComparer.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\InternalStringComparer.cs" Link="Collections\Shipped\InternalStringComparer.cs" />
+    <Compile Include="..\..\src\Hyperlite.Persistence\Collections\IdentityComparer.cs" Link="Collections\Shipped\IdentityComparer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Hyperlite.Persistence\Hyperlite.Persistence.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="MSTest.TestAdapter" />
+    <PackageReference Include="MSTest.TestFramework" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" />
+  </ItemGroup>
+
+  <!-- on .NET Core the test host reads its own config rather than the test assembly's -->
+  <Target Name="CopyTestHostConfig" AfterTargets="Build" Condition="'$(TargetFramework)' != 'net48'">
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll.config"
+          DestinationFiles="$(OutputPath)testhost.dll.config"
+          Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
+  </Target>
+
+</Project>

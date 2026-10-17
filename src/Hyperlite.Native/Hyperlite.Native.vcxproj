@@ -1,0 +1,448 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!--
+    Hyperlite.Native, the only native dependency of Hyperlite.
+
+    Produces Hyperlite.Native.$(HyperliteRid).dll with sqlite linked in statically,
+    so the deployed artefact is a single file per runtime identifier.
+
+    The sqlite preprocessor definitions are fixed: the compile time configuration is
+    part of the on-disk contract, see abi.h and SQLiteEnv.h.
+
+    Output goes to $(NativeOutputPath), defined in Directory.Build.props as
+    dist\<configuration>\runtimes\<rid>\native: the shape a nuget package expects, so
+    packing is a copy of a directory rather than a rearrangement of files.
+  -->
+  <PropertyGroup>
+    <SqliteDefines>SQLITE_MAX_LENGTH=2000000000;SQLITE_THREADSAFE=2;SQLITE_DEFAULT_MEMSTATUS=0;SQLITE_DQS=0;SQLITE_LIKE_DOESNT_MATCH_BLOBS;SQLITE_MAX_EXPR_DEPTH=0;SQLITE_USE_ALLOCA;SQLITE_OMIT_DEPRECATED;SQLITE_OMIT_LOAD_EXTENSION;SQLITE_OMIT_PROGRESS_CALLBACK</SqliteDefines>
+    <!--
+      $(ProjectDir), not $(RepoRoot): this property group is read before
+      Microsoft.Cpp.Default.props below, which is what pulls Directory.Build.props in,
+      so nothing defined there is available yet at this point.
+    -->
+    <DepsDir>$(ProjectDir)..\..\deps</DepsDir>
+    <!-- scratch space and stamp for the sqlite amalgamation, under the intermediate tree -->
+    <SqliteUnpackDir>$(ProjectDir)..\..\build\sqlite-amalgamation</SqliteUnpackDir>
+    <SqliteStampDir>$(ProjectDir)..\..\build\sqlite-amalgamation-stamp\</SqliteStampDir>
+    <HyperliteRid Condition="'$(HyperliteRid)' == ''">win-x64</HyperliteRid>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{7A1E4C93-2D5B-4F0A-9E31-5C8B7D2A6F14}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>Hyperlite</RootNamespace>
+    <TargetName>Hyperlite.Native.$(HyperliteRid)</TargetName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset Condition="'$(PlatformToolset)'==''">v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset Condition="'$(PlatformToolset)'==''">v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <OutDir>$(NativeOutputPath)</OutDir>
+    <IntDir>$(RepoRoot)build\$(ProjectDirectoryName)\$(HyperliteRid)\$(Configuration)\</IntDir>
+    <!-- no incremental linking: it only produces an .ilk beside the output, and this
+         is built by a script rather than iterated on in an IDE -->
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <ConformanceMode>true</ConformanceMode>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;_USRDLL;$(SqliteDefines);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- the C runtime linked in (/MT): a consumer needs no Visual C++ redistributable.
+           Safe because memory never crosses the boundary to be freed elsewhere - the
+           managed side returns native blocks through mem_free, and frees its own. -->
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(DepsDir)\sqlite</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <!--
+        The import library and the exports file it comes with are link by-products
+        that nothing here consumes - the native test resolves this dll at runtime
+        rather than linking against it - so they go to the intermediate directory
+        and leave the deliverable directory holding the dll and its symbols.
+      -->
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ModuleDefinitionFile>$(ProjectDir)Hyperlite.Native.def</ModuleDefinitionFile>
+      <AdditionalDependencies>advapi32.lib;bcrypt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <ConformanceMode>true</ConformanceMode>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <StringPooling>true</StringPooling>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;_USRDLL;$(SqliteDefines);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- the C runtime linked in (/MT): a consumer needs no Visual C++ redistributable.
+           Safe because memory never crosses the boundary to be freed elsewhere - the
+           managed side returns native blocks through mem_free, and frees its own. -->
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(DepsDir)\sqlite</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <!-- reproducible: no timestamp in the objects, see the link options below, and no
+           build machine paths - __FILE__ reaches every exception the dll reports, so it is
+           trimmed to the path below the repository root -->
+      <AdditionalOptions>/Brepro "/d1trimfile:$(RepoRoot.TrimEnd('\'))" %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <!--
+        The import library and the exports file it comes with are link by-products
+        that nothing here consumes - the native test resolves this dll at runtime
+        rather than linking against it - so they go to the intermediate directory
+        and leave the deliverable directory holding the dll and its symbols.
+      -->
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <ModuleDefinitionFile>$(ProjectDir)Hyperlite.Native.def</ModuleDefinitionFile>
+      <AdditionalDependencies>advapi32.lib;bcrypt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <!--
+        The dll that ships. /Brepro replaces the link timestamp with a hash of the content,
+        so the same sources give the same bytes. /PDBALTPATH records the symbol file by its
+        name alone, not by this machine's path to it - a debugger finds it beside the dll or
+        on a symbol server either way. /CETCOMPAT marks it compatible with hardware-enforced
+        shadow stacks.
+      -->
+      <AdditionalOptions>/Brepro /PDBALTPATH:%_PDB% %(AdditionalOptions)</AdditionalOptions>
+      <CETCompat>true</CETCompat>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="abi.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="Regex.h" />
+    <ClInclude Include="ScanContext.h" />
+    <ClInclude Include="ScanSpec.h" />
+    <ClInclude Include="Schema.h" />
+    <ClInclude Include="SQLiteDb.h" />
+    <ClInclude Include="SQLiteEnv.h" />
+    <ClInclude Include="Support.h" />
+    <ClInclude Include="Types.h" />
+    <ClInclude Include="Xml.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="api.cpp" />
+    <ClCompile Include="Regex.cpp" />
+    <ClCompile Include="ScanContext.cpp" />
+    <ClCompile Include="ScanSpec.cpp" />
+    <ClCompile Include="Schema.cpp" />
+    <ClCompile Include="SQLiteDb.cpp" />
+    <ClCompile Include="SQLiteEnv.cpp" />
+    <ClCompile Include="Support.cpp" />
+    <ClCompile Include="Xml.cpp" />
+    <!-- the vendored dependency, a single translation unit -->
+    <ClCompile Include="sqlite3-build.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <CompileAs>CompileAsC</CompileAs>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Hyperlite.Native.def" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+  <ItemGroup>
+    <ResourceCompile Include="Hyperlite.Native.rc">
+      <!--
+        _WIN64 is not used by the version block today, but rc.exe gets the same shape as
+        the compiler so a platform conditional here would behave as expected.
+      -->
+      <PreprocessorDefinitions>_WIN64;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+  </ItemGroup>
+  <!--
+    Generates Hyperlite.version.h beside Hyperlite.Native.rc, so the version resource takes its
+    values from Version.props rather than holding literals. Runs before the resource
+    compiler; WriteOnlyWhenDifferent keeps it from forcing a rebuild every time.
+  -->
+  <ItemGroup>
+    <!-- every published amalgamation present; the newest wins, see SelectSqliteAmalgamation -->
+    <SqliteArchiveCandidate Include="$(DepsDir)\sqlite\sqlite-amalgamation-*.zip" />
+  </ItemGroup>
+  <!--
+    Reads the version out of each sqlite-amalgamation-<version>.zip and reports the
+    highest, plus the ones it supersedes.
+
+    An inline task rather than msbuild item juggling because the comparison is numeric and
+    msbuild has no way to take the maximum of an item list. sqlite writes 3.53.1 as
+    3530100 - seven digits, which would also sort correctly as text, but a shorter version
+    from an older release would not.
+  -->
+  <UsingTask TaskName="SelectNewestAmalgamation" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Archives ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Newest ParameterType="System.String" Output="true" />
+      <NewestVersion ParameterType="System.String" Output="true" />
+      <Superseded ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+          var best = -1L;
+          Microsoft.Build.Framework.ITaskItem bestItem = null;
+          var older = new System.Collections.Generic.List<Microsoft.Build.Framework.ITaskItem>();
+
+          foreach (var archive in Archives)
+          {
+              var name = System.IO.Path.GetFileNameWithoutExtension(archive.ItemSpec);
+              var dash = name.LastIndexOf('-');
+              long version;
+
+              if (dash < 0 || !long.TryParse(name.Substring(dash + 1), out version))
+              {
+                  Log.LogError(
+                      "Cannot read a version out of '" + name +
+                      "'. Expected sqlite-amalgamation-<version>.zip, as published by sqlite.org.");
+                  continue;
+              }
+
+              if (version > best)
+              {
+                  if (bestItem != null)
+                  {
+                      older.Add(bestItem);
+                  }
+
+                  best = version;
+                  bestItem = archive;
+              }
+              else
+              {
+                  older.Add(archive);
+              }
+          }
+
+          if (bestItem != null)
+          {
+              Newest = bestItem.GetMetadata("FullPath");
+              NewestVersion = best.ToString();
+          }
+
+          Superseded = older.ToArray();
+        ]]></Code>
+    </Task>
+  </UsingTask>
+  <!--
+    Selecting and pruning are separate from unpacking, and have to be: a target with
+    Inputs and Outputs is skipped whole when those say it is up to date, so anything
+    written in here that must happen every build cannot live in the unpack target.
+  -->
+  <Target Name="SelectSqliteAmalgamation" BeforeTargets="UnpackSqliteAmalgamation;PrepareForBuild;ResourceCompile;ClCompile">
+    <Error Condition="'@(SqliteArchiveCandidate)' == ''" Text="No sqlite-amalgamation-*.zip in $(DepsDir)\sqlite. Download the amalgamation from sqlite.org and put the zip there." />
+    <SelectNewestAmalgamation Archives="@(SqliteArchiveCandidate)">
+      <Output TaskParameter="Newest" PropertyName="SqliteArchive" />
+      <Output TaskParameter="NewestVersion" PropertyName="SqliteVersion" />
+      <Output TaskParameter="Superseded" ItemName="SqliteArchiveSuperseded" />
+    </SelectNewestAmalgamation>
+    <!-- an upgrade is a newer zip dropped in beside the old one, so prune rather than complain -->
+    <Message Importance="high" Condition="'@(SqliteArchiveSuperseded)' != ''" Text="Superseded by sqlite $(SqliteVersion), deleting @(SqliteArchiveSuperseded->'%(Filename)%(Extension)', ', ')" />
+    <Delete Files="@(SqliteArchiveSuperseded)" />
+  </Target>
+  <!--
+    Unpacks the chosen archive when the extracted source is missing, older than the zip, or
+    came from a different one.
+
+    The archive nests its files under a version-named directory and the include path above
+    expects them flat, hence the copy up one level. shell.c and sqlite3ext.h are in the
+    archive and deliberately left there: the first is sqlite's command line tool and the
+    second is for loadable extensions, and this links the amalgamation statically with
+    neither.
+  -->
+  <Target Name="UnpackSqliteAmalgamation" DependsOnTargets="SelectSqliteAmalgamation" BeforeTargets="PrepareForBuild;ResourceCompile;ClCompile" Inputs="$(SqliteArchive)" Outputs="$(DepsDir)\sqlite\sqlite3.c;$(DepsDir)\sqlite\sqlite3.h;$(SqliteStampDir)$(SqliteVersion).unpacked">
+    <Message Importance="high" Text="Unpacking sqlite $(SqliteVersion) from $([System.IO.Path]::GetFileName($(SqliteArchive)))" />
+    <RemoveDir Directories="$(SqliteUnpackDir)" />
+    <Unzip SourceFiles="$(SqliteArchive)" DestinationFolder="$(SqliteUnpackDir)" />
+    <ItemGroup>
+      <SqliteSource Include="$(SqliteUnpackDir)\**\sqlite3.c;$(SqliteUnpackDir)\**\sqlite3.h" />
+    </ItemGroup>
+    <Error Condition="'@(SqliteSource-&gt;Count())' != '2'" Text="Expected sqlite3.c and sqlite3.h in the amalgamation, found @(SqliteSource-&gt;Count())." />
+    <Copy SourceFiles="@(SqliteSource)" DestinationFolder="$(DepsDir)\sqlite" />
+    <!--
+      Touch, because the extracted files carry the timestamps the archive recorded - older
+      than the zip itself - so Outputs would read as stale on every build and this target
+      would unpack 10 MB again each time. Stamping them now makes them newer than their
+      input, which is what up to date means here.
+    -->
+    <Touch Files="$(DepsDir)\sqlite\sqlite3.c;$(DepsDir)\sqlite\sqlite3.h" />
+    <!--
+      A stamp named after the version, so that swapping archives is a missing output
+      rather than a date comparison. A zip downloaded from sqlite.org can carry a date
+      older than the source already extracted from the previous one, and then nothing
+      would look stale and the build would quietly keep compiling the old amalgamation.
+    -->
+    <RemoveDir Directories="$(SqliteStampDir)" />
+    <WriteLinesToFile File="$(SqliteStampDir)$(SqliteVersion).unpacked" Lines="$([System.IO.Path]::GetFileName($(SqliteArchive)))" Overwrite="true" />
+    <RemoveDir Directories="$(SqliteUnpackDir)" />
+  </Target>
+  <!--
+    Rewrites the sbom the Hyperlite package carries for sqlite - src\Hyperlite\sqlite.spdx.json -
+    when it names another amalgamation than the one in use, so that an upgrade cannot ship
+    with the old version on record. Version and release year come from the unpacked
+    sqlite3.h, which has to agree with the archive's name. A file that already names the
+    archive is left alone, so a clean clone, CI among them, rewrites nothing; after an
+    upgrade the rewritten file is source and gets committed with the new zip.
+  -->
+  <UsingTask TaskName="UpdateSqliteSbom" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Sbom ParameterType="System.String" Required="true" />
+      <Header ParameterType="System.String" Required="true" />
+      <Version ParameterType="System.String" Required="true" />
+      <Holder ParameterType="System.String" Required="true" />
+      <Repository ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+          var archive = "sqlite-amalgamation-" + Version + ".zip";
+          if (System.IO.File.Exists(Sbom) && System.IO.File.ReadAllText(Sbom).Contains(archive))
+          {
+              return true;
+          }
+
+          // sqlite writes 3.54.1 as 3540100 in the archive name
+          var number = long.Parse(Version);
+          var dotted = (number / 1000000) + "." + (number / 10000 % 100) + "." + (number / 100 % 100);
+
+          var header = System.IO.File.ReadAllText(Header);
+          var version = System.Text.RegularExpressions.Regex.Match(header, "#define SQLITE_VERSION\\s+\"([^\"]+)\"");
+          var source = System.Text.RegularExpressions.Regex.Match(header, "#define SQLITE_SOURCE_ID\\s+\"(\\d{4})-");
+          if (!version.Success || !source.Success || version.Groups[1].Value != dotted)
+          {
+              Log.LogError("sqlite3.h does not describe sqlite " + dotted + ", the version " + archive + " names.");
+              return false;
+          }
+
+          var download = "https://www.sqlite.org/" + source.Groups[1].Value + "/" + archive;
+          var holder = Holder.Replace("\\", "\\\\").Replace("\"", "\\\"");
+          var lines = new[]
+          {
+              "{",
+              "  \"spdxVersion\": \"SPDX-2.2\",",
+              "  \"dataLicense\": \"CC0-1.0\",",
+              "  \"SPDXID\": \"SPDXRef-DOCUMENT\",",
+              "  \"name\": \"SQLite " + dotted + "\",",
+              "  \"documentNamespace\": \"" + Repository + "/deps/sqlite/" + dotted + "\",",
+              "  \"creationInfo\": {",
+              "    \"created\": \"" + System.DateTime.UtcNow.ToString("yyyy-MM-dd") + "T00:00:00Z\",",
+              "    \"creators\": [",
+              "      \"Organization: " + holder + "\"",
+              "    ]",
+              "  },",
+              "  \"documentDescribes\": [",
+              "    \"SPDXRef-Package-SQLite\"",
+              "  ],",
+              "  \"packages\": [",
+              "    {",
+              "      \"name\": \"SQLite\",",
+              "      \"SPDXID\": \"SPDXRef-Package-SQLite\",",
+              "      \"versionInfo\": \"" + dotted + "\",",
+              "      \"downloadLocation\": \"" + download + "\",",
+              "      \"filesAnalyzed\": false,",
+              "      \"licenseConcluded\": \"blessing\",",
+              "      \"licenseDeclared\": \"blessing\",",
+              "      \"copyrightText\": \"NOASSERTION\",",
+              "      \"supplier\": \"NOASSERTION\",",
+              "      \"comment\": \"Compiled into Hyperlite.Native.win-x64.dll from the amalgamation archive vendored in deps/sqlite.\",",
+              "      \"externalRefs\": [",
+              "        {",
+              "          \"referenceCategory\": \"PACKAGE-MANAGER\",",
+              "          \"referenceType\": \"purl\",",
+              "          \"referenceLocator\": \"pkg:generic/sqlite@" + dotted + "?download_url=" + download + "\"",
+              "        }",
+              "      ]",
+              "    }",
+              "  ],",
+              "  \"relationships\": [",
+              "    {",
+              "      \"spdxElementId\": \"SPDXRef-DOCUMENT\",",
+              "      \"relationshipType\": \"DESCRIBES\",",
+              "      \"relatedSpdxElement\": \"SPDXRef-Package-SQLite\"",
+              "    }",
+              "  ]",
+              "}",
+              "",
+          };
+          System.IO.File.WriteAllText(Sbom, string.Join("\r\n", lines), new System.Text.UTF8Encoding(false));
+          // the year is the check-in's, which sqlite.org files the release under but for one
+          // released around the turn of the year
+          Log.LogWarning("Updated " + System.IO.Path.GetFileName(Sbom) + " to sqlite " + dotted + ", downloadable from " + download + " - check that, and commit it with the new archive.");
+        ]]></Code>
+    </Task>
+  </UsingTask>
+  <Target Name="UpdateSqliteSbom" DependsOnTargets="UnpackSqliteAmalgamation" BeforeTargets="ClCompile">
+    <UpdateSqliteSbom Sbom="$(RepoRoot)src\Hyperlite\sqlite.spdx.json" Header="$(DepsDir)\sqlite\sqlite3.h" Version="$(SqliteVersion)" Holder="$(CopyrightHolder)" Repository="$(RepositoryUrl)" />
+  </Target>
+  <Target Name="GenerateVersionHeader" BeforeTargets="ResourceCompile;ClCompile">
+    <ItemGroup>
+      <VersionHeaderLine Include="// Generated from Version.props by GenerateVersionHeader. Do not edit." />
+      <!-- a // comment, not /* */: an asterisk in an Include is a wildcard and the line
+           would be glob expanded away -->
+      <VersionHeaderLine Include="#pragma once" />
+      <VersionHeaderLine Include="#define HYPERLITE_VERSION_STR &quot;$(Version)&quot;" />
+      <VersionHeaderLine Include="#define HYPERLITE_VERSION_COMMA $(VersionComma)" />
+      <VersionHeaderLine Include="#define HYPERLITE_COPYRIGHT_STR &quot;$(CopyrightEscaped)&quot;" />
+      <VersionHeaderLine Include="#define HYPERLITE_COMPANY_STR &quot;$(Company)&quot;" />
+      <VersionHeaderLine Include="#define HYPERLITE_ORIGINAL_FILENAME &quot;$(TargetName)$(TargetExt)&quot;" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(MSBuildProjectDirectory)\Hyperlite.version.h" Lines="@(VersionHeaderLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+  </Target>
+  <!--
+    A C++ project has no Pack target, and both the solution and Hyperlite - which
+    references this project - ask every project they reach for one. Without this,
+    packing fails with MSB4057 and Hyperlite produces no package at all.
+
+    Nothing to do here: the dll this project builds is packed by Hyperlite, as the Content
+    item in Hyperlite.csproj, because that is the package it belongs in.
+  -->
+  <Target Name="Pack" />
+</Project>

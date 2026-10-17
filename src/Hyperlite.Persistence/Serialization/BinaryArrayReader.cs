@@ -1,0 +1,469 @@
+﻿namespace Hyperlite.Persistence.Serialization
+{
+    using System;
+    using System.IO;
+    using System.Runtime.CompilerServices;
+    using System.Runtime.InteropServices;
+    using System.Text;
+
+    internal sealed class BinaryArrayReader : BinaryReader
+    {
+        private static readonly UTF8Encoding UTF8Encoding = new UTF8Encoding(false, true);
+
+        private static readonly MemoryStream UnusedMemoryStream = new MemoryStream();
+
+        public readonly unsafe byte* endPtr;
+
+        public unsafe byte* ptr;
+
+        private readonly unsafe byte* basePtr;
+
+        private readonly byte[] buffer;
+
+        private readonly System.Text.Decoder decoder;
+
+        private readonly Encoding encoding;
+
+        private readonly int offset;
+
+        private readonly int readCharByteCount;
+
+        private GCHandle bufferHandle;
+
+        public BinaryArrayReader(byte[] buffer)
+            : this(buffer, 0)
+        {
+        }
+
+        public BinaryArrayReader(byte[] buffer, int index)
+            : this(buffer, index, buffer.Length - index)
+        {
+        }
+
+        public BinaryArrayReader(byte[] buffer, int index, int count)
+            : this(buffer, index, count, UTF8Encoding)
+        {
+        }
+
+        public unsafe BinaryArrayReader(byte[] buffer, int index, int count, Encoding encoding)
+            : base(UnusedMemoryStream, encoding, true)
+        {
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (index < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
+            if (buffer.Length - index < count)
+            {
+                throw new ArgumentException("The buffer length minus index is less than count.");
+            }
+
+            this.buffer = buffer;
+            this.offset = index;
+
+            this.encoding = encoding;
+            this.decoder = encoding.GetDecoder();
+            this.readCharByteCount = encoding is UnicodeEncoding ? 2 : 1;
+
+            this.bufferHandle = GCHandle.Alloc(this.buffer, GCHandleType.Pinned);
+            this.basePtr = (byte*)this.bufferHandle.AddrOfPinnedObject() + index;
+            this.endPtr = this.basePtr + count;
+
+            this.ptr = this.basePtr;
+        }
+
+        public unsafe BinaryArrayReader(IntPtr buffer, int count)
+            : this(buffer, count, UTF8Encoding)
+        {
+        }
+
+        public unsafe BinaryArrayReader(IntPtr buffer, int count, Encoding encoding)
+            : base(UnusedMemoryStream, encoding, true)
+        {
+            if (buffer == IntPtr.Zero)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
+            this.encoding = encoding;
+            this.decoder = encoding.GetDecoder();
+            this.readCharByteCount = encoding is UnicodeEncoding ? 2 : 1;
+
+            this.basePtr = (byte*)buffer;
+            this.endPtr = this.basePtr + count;
+
+            this.ptr = this.basePtr;
+        }
+
+        public override Stream BaseStream => null;
+
+        /// <summary>
+        ///     Gets the number of bytes left to read.
+        /// </summary>
+        internal unsafe long Remaining => this.endPtr - this.ptr;
+
+        public override unsafe int PeekChar()
+        {
+            var p = this.ptr;
+            var ch = this.Read();
+            this.ptr = p;
+            return ch;
+        }
+
+        public override unsafe int Read()
+        {
+            var ch = default(char);
+
+            var charsRead = 0;
+            while (charsRead == 0)
+            {
+                var byteCount = this.Truncate(this.readCharByteCount);
+                if (byteCount == 0)
+                {
+                    return -1;
+                }
+
+                charsRead = this.decoder.GetChars(this.ptr, byteCount, &ch, 1, false);
+
+                this.ptr += byteCount;
+            }
+
+            return ch;
+        }
+
+        public override int Read(char[] buffer, int index, int count)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override unsafe int Read(byte[] buffer, int index, int count)
+        {
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (index < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
+            if (buffer.Length - index < count)
+            {
+                throw new ArgumentException("The buffer length minus index is less than count.", nameof(buffer));
+            }
+
+            var byteCount = this.Truncate(count);
+            if (byteCount > 0)
+            {
+                fixed (byte* p = &buffer[index])
+                {
+                    memcpy(p, this.ptr, new UIntPtr((uint)byteCount));
+                }
+
+                this.ptr += byteCount;
+            }
+
+            return byteCount;
+        }
+
+        public override unsafe bool ReadBoolean()
+        {
+            this.ThrowIfEndOfStream(1);
+            return *this.ptr++ != 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override unsafe byte ReadByte()
+        {
+            this.ThrowIfEndOfStream(1);
+            return *this.ptr++;
+        }
+
+        public override unsafe byte[] ReadBytes(int count)
+        {
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
+            var byteCount = this.Truncate(count);
+            var result = new byte[byteCount];
+            if (byteCount > 0)
+            {
+                fixed (byte* p = &result[0])
+                {
+                    memcpy(p, this.ptr, new UIntPtr((uint)byteCount));
+                }
+
+                this.ptr += byteCount;
+            }
+
+            return result;
+        }
+
+        public override char ReadChar()
+        {
+            var value = this.Read();
+            if (value == -1)
+            {
+                throw new EndOfStreamException();
+            }
+
+            return (char)value;
+        }
+
+        public override char[] ReadChars(int count)
+        {
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
+            var chars = new char[count];
+            var charsRead = this.Read(chars, 0, count);
+            if (charsRead < count)
+            {
+                Array.Resize(ref chars, charsRead);
+            }
+
+            return chars;
+        }
+
+        public override unsafe decimal ReadDecimal()
+        {
+            unchecked
+            {
+                this.ThrowIfEndOfStream(16);
+
+                var lo = ((int)this.ptr[0]) | ((int)this.ptr[1] << 8) | ((int)this.ptr[2] << 16)
+                         | ((int)this.ptr[3] << 24);
+                var mid = ((int)this.ptr[4]) | ((int)this.ptr[5] << 8) | ((int)this.ptr[6] << 16)
+                          | ((int)this.ptr[7] << 24);
+                var hi = ((int)this.ptr[8]) | ((int)this.ptr[9] << 8) | ((int)this.ptr[10] << 16)
+                         | ((int)this.ptr[11] << 24);
+
+                var sign = (this.ptr[15] & 0x80) > 0;
+                var scale = (byte)(this.ptr[14] & 0x7f);
+
+                this.ptr += 16;
+
+                try
+                {
+                    return new Decimal(lo, mid, hi, sign, scale);
+                }
+                catch (ArgumentException)
+                {
+                    // ReadDecimal cannot leak out ArgumentException
+                    throw new IOException("Read decimal failed");
+                }
+            }
+        }
+
+        public override unsafe double ReadDouble()
+        {
+            unchecked
+            {
+                this.ThrowIfEndOfStream(8);
+
+                var lo = (uint)(this.ptr[0] | this.ptr[1] << 8 | this.ptr[2] << 16 | this.ptr[3] << 24);
+                var hi = (uint)(this.ptr[4] | this.ptr[5] << 8 | this.ptr[6] << 16 | this.ptr[7] << 24);
+
+                this.ptr += 8;
+
+                var v = ((ulong)hi) << 32 | lo;
+                return *((double*)&v);
+            }
+        }
+
+        public override unsafe short ReadInt16()
+        {
+            unchecked
+            {
+                this.ThrowIfEndOfStream(2);
+
+                var v = (short)(this.ptr[0] | this.ptr[1] << 8);
+                this.ptr += 2;
+                return v;
+            }
+        }
+
+        public override unsafe int ReadInt32()
+        {
+            this.ThrowIfEndOfStream(4);
+
+            var v = (int)(this.ptr[0] | this.ptr[1] << 8 | this.ptr[2] << 16 | this.ptr[3] << 24);
+            this.ptr += 4;
+            return v;
+        }
+
+        public override unsafe long ReadInt64()
+        {
+            unchecked
+            {
+                this.ThrowIfEndOfStream(8);
+
+                var lo = (uint)(this.ptr[0] | this.ptr[1] << 8 | this.ptr[2] << 16 | this.ptr[3] << 24);
+                var hi = (uint)(this.ptr[4] | this.ptr[5] << 8 | this.ptr[6] << 16 | this.ptr[7] << 24);
+
+                this.ptr += 8;
+
+                return (long)((ulong)hi) << 32 | lo;
+            }
+        }
+
+        public override unsafe sbyte ReadSByte()
+        {
+            unchecked
+            {
+                this.ThrowIfEndOfStream(1);
+                return (sbyte)*this.ptr++;
+            }
+        }
+
+        public override unsafe float ReadSingle()
+        {
+            unchecked
+            {
+                this.ThrowIfEndOfStream(4);
+
+                var v = (uint)(this.ptr[0] | this.ptr[1] << 8 | this.ptr[2] << 16 | this.ptr[3] << 24);
+
+                this.ptr += 4;
+
+                return *((float*)&v);
+            }
+        }
+
+        public override unsafe string ReadString()
+        {
+            unchecked
+            {
+                var byteCount = this.ReadStringLength();
+                this.ThrowIfEndOfStream(byteCount);
+                var index = (int)(this.ptr - this.basePtr) + this.offset;
+                if (byteCount == 0)
+                {
+                    return string.Empty;
+                }
+
+                var s = new string((sbyte*)this.ptr, 0, byteCount, this.encoding);
+                this.ptr += byteCount;
+                return s;
+            }
+        }
+
+        public override unsafe ushort ReadUInt16()
+        {
+            unchecked
+            {
+                this.ThrowIfEndOfStream(2);
+
+                var v = (ushort)(this.ptr[0] | this.ptr[1] << 8);
+                this.ptr += 2;
+                return v;
+            }
+        }
+
+        public override unsafe uint ReadUInt32()
+        {
+            unchecked
+            {
+                this.ThrowIfEndOfStream(4);
+
+                var v = (uint)(this.ptr[0] | this.ptr[1] << 8 | this.ptr[2] << 16 | this.ptr[3] << 24);
+                this.ptr += 4;
+                return v;
+            }
+        }
+
+        public override unsafe ulong ReadUInt64()
+        {
+            unchecked
+            {
+                this.ThrowIfEndOfStream(8);
+
+                var lo = (uint)(this.ptr[0] | this.ptr[1] << 8 | this.ptr[2] << 16 | this.ptr[3] << 24);
+                var hi = (uint)(this.ptr[4] | this.ptr[5] << 8 | this.ptr[6] << 16 | this.ptr[7] << 24);
+
+                this.ptr += 8;
+
+                return ((ulong)hi) << 32 | lo;
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (this.bufferHandle.IsAllocated)
+            {
+                this.bufferHandle.Free();
+            }
+            base.Dispose(disposing);
+        }
+
+        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl,
+            SetLastError = false)]
+        private static extern unsafe IntPtr memcpy(byte* dest, byte* src, UIntPtr count);
+
+        private unsafe int ReadStringLength()
+        {
+            unchecked
+            {
+                var count = 0;
+                var shift = 0;
+                byte b;
+                do
+                {
+                    this.ThrowIfEndOfStream(1);
+                    b = *this.ptr++;
+                    count |= (b & 0x7F) << shift;
+                    shift += 7;
+                } while ((b & 0x80) != 0);
+                return count;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private unsafe void ThrowIfEndOfStream(int requiredBytes)
+        {
+            if (this.ptr + requiredBytes > this.endPtr)
+            {
+                throw new EndOfStreamException();
+            }
+        }
+
+        private unsafe int Truncate(int requiredBytes)
+        {
+            unchecked
+            {
+                var remainigBytes = (int)(this.endPtr - this.ptr);
+                if (remainigBytes < requiredBytes)
+                {
+                    requiredBytes = remainigBytes;
+                }
+
+                return requiredBytes;
+            }
+        }
+    }
+}

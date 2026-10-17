@@ -1,0 +1,67 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Hyperlite.Persistence - object persistence over the namespace Hyperlite api.
+
+    In this repository there is exactly one client library, so Hyperlite is referenced as a
+    project rather than resolved by hint path out of a sibling checkout. That is what
+    replaced HypertableAssembly.props and the UseHt4n2 switch: nothing here has to
+    choose between two clients any more.
+  -->
+
+  <PropertyGroup>
+    <!--
+      See the note on HyperliteLibraryTargetFrameworks in Directory.Build.props for why
+      this list is net48, net8.0, net10.0 and netstandard2.0 rather than one entry per
+      framework.
+
+      In short: nuget prefers an exact match, so net48, net8.0 and net10.0 consumers get
+      the assembly built for them and keep the per-runtime fast paths, a net9.0 consumer
+      gets the net8.0 one, and netstandard2.0 catches everything else. Without that last
+      one a net472 project fails outright with NU1202 and a net6.0 project restores only by
+      falling back onto the net48 assembly with NU1701 "may not be fully compatible" -
+      quietly running a .NET Framework build on .NET 6.
+    -->
+    <TargetFrameworks>$(HyperliteLibraryTargetFrameworks)</TargetFrameworks>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>Hyperlite.Persistence</RootNamespace>
+    <AssemblyName>Hyperlite.Persistence</AssemblyName>
+    <AssemblyTitle>Hyperlite.Persistence</AssemblyTitle>
+    <Product>Hyperlite.Persistence</Product>
+    <Description>Object mapper for Hyperlite</Description>
+
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- the key and the signing mode come from Directory.Build.props -->
+    <SignAssembly>true</SignAssembly>
+
+    <!-- 1587 - xml comment placed on something the compiler does not document -->
+    <NoWarn>$(NoWarn);1587</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Hyperlite.Persistence</PackageId>
+    <Title>Hyperlite.Persistence</Title>
+    <PackageDescription>Object mapper for Hyperlite, x64. Contains the serializer, so do not reference Hyperlite.Serialization as well: the same types in both fail to compile (CS0433).</PackageDescription>
+    <PackageTags>Hyperlite persistence orm mapper entity nosql database db sqlite</PackageTags>
+    <!-- no project, repository, license or icon here: package links are a product-wide
+         decision and live in Directory.Build.props, so that no package can disagree with
+         another about where its source or its license is -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hyperlite\Hyperlite.csproj" />
+  </ItemGroup>
+
+  <!-- in-box from net5 onwards, so a dependency only of the frameworks that lack it -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48' or '$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Buffers" />
+  </ItemGroup>
+
+  <!-- DynamicMethod, in-box on .NET Framework too -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Reflection.Emit.Lightweight" />
+  </ItemGroup>
+
+</Project>

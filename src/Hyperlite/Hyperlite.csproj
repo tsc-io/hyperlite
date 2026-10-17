@@ -1,0 +1,189 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Hyperlite - the client library: cells, keys, scanners, mutators.
+
+    It began as a reimplementation of ht4n's api, member for member, which is why ht4n's
+    own test suite still runs against it. The names have since moved on - namespace
+    Hyperlite, and the configuration prefix Hyperlite. rather than Ht4n. - so a consumer
+    coming from ht4n or ht4n2 updates its using directives and its assembly reference,
+    while its connection strings keep working unchanged: the Ht4n. keys are still read, as
+    aliases of the Hyperlite. ones.
+
+    The native half is reached through the single-export dispatch table in
+    Hyperlite.Native, see Interop/.
+  -->
+
+  <PropertyGroup>
+    <!--
+      See the note on HyperliteLibraryTargetFrameworks in Directory.Build.props for why
+      this list is net48, net8.0, net10.0 and netstandard2.0 rather than one entry per
+      framework.
+
+      In short: nuget prefers an exact match, so net48, net8.0 and net10.0 consumers get
+      the assembly built for them and keep the per-runtime fast paths, a net9.0 consumer
+      gets the net8.0 one, and netstandard2.0 catches everything else. Without that last
+      one a net472 project fails outright with NU1202 and a net6.0 project restores only by
+      falling back onto the net48 assembly with NU1701 "may not be fully compatible" -
+      quietly running a .NET Framework build on .NET 6.
+
+      The netstandard leg uses the conservative interop: delegate marshalling for the regex
+      callbacks instead of UnmanagedCallersOnly, and RandomNumberGenerator.Create instead of
+      Fill. Correct, just not the fastest, and only consumers on those frameworks pay for it.
+    -->
+    <TargetFrameworks>$(HyperliteLibraryTargetFrameworks)</TargetFrameworks>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>Hyperlite</RootNamespace>
+    <AssemblyName>Hyperlite</AssemblyName>
+    <AssemblyTitle>Hyperlite</AssemblyTitle>
+    <Product>Hyperlite</Product>
+    <Description>Embedded, sorted, versioned cell store for .NET</Description>
+
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CLS compliance is declared in Properties/AssemblyInfo.cs: CLSCompliant is not an SDK property -->
+
+    <!-- the key and the signing mode come from Directory.Build.props -->
+    <SignAssembly>true</SignAssembly>
+
+    <!--
+      1591     - by choice: a member whose name and type say everything - a parameterless
+                 constructor, StartRow on a row interval - has no doc.
+                 Everything with something to say is documented; switch it on to check.
+      0672     - GetObjectData overrides a member the newer frameworks mark obsolete.
+                 ht4n's exceptions were binary serializable and dropping that would be
+                 an api break, so the override stays.
+      SYSLIB0051 - same reason, for the SerializationInfo constructors
+    -->
+    <NoWarn>$(NoWarn);1591;0672;SYSLIB0051</NoWarn>
+  </PropertyGroup>
+
+  <!-- package: the managed assembly, its documentation, and the native companion -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Hyperlite</PackageId>
+    <Title>Hyperlite</Title>
+    <PackageDescription>Embedded, sorted, versioned cell store for .NET, x64, managed with a native companion</PackageDescription>
+    <PackageTags>Hyperlite cell-store key-value nosql database db client sqlite embedded</PackageTags>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
+    <DefineConstants>$(DefineConstants);NETFRAMEWORK</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48' or '$(TargetFramework)' == 'netstandard2.0'">
+    <!-- ArrayPool, which PooledCell needs; in-box from net5 onwards -->
+    <PackageReference Include="System.Buffers" />
+  </ItemGroup>
+
+  <!--
+    No System.Configuration.ConfigurationManager. It used to be referenced here and
+    nothing in the library ever used it - no ConfigurationManager, ConfigurationSection or
+    AppSettings anywhere in src. What it did do was declare itself a dependency of the
+    package for every framework and drag System.Diagnostics.EventLog and
+    System.Security.Cryptography.ProtectedData along, which is where the stray
+    runtimes\win\lib\ directory beside each framework's output came from.
+
+    The suites and the explorer reference it themselves, because they do read app settings.
+  -->
+
+  <!--
+    The native companion.
+
+    A Content item rather than a None item, and that is the whole trick: Content with
+    CopyToOutputDirectory also flows through a ProjectReference, so every project that
+    references Hyperlite - Hyperlite.Persistence, the tests, the smoke harness, the explorer - gets the
+    companion in its output without saying anything about it. Hyperlite's loader probes the
+    directory the assembly sits in, so that is exactly where it has to be.
+
+    The same item carries the file into the package under runtimes\<rid>\native, the
+    location a PackageReference consumer resolves natives from.
+  -->
+  <ItemGroup>
+    <Content Include="$(NativeCompanion)">
+      <Link>Hyperlite.Native.$(HyperliteRid).dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+      <Pack>true</Pack>
+      <PackagePath>runtimes\$(HyperliteRid)\native</PackagePath>
+    </Content>
+  </ItemGroup>
+
+  <!--
+    Shipped inside the package as build\<tfm>\Hyperlite.targets and as
+    buildTransitive\<tfm>\Hyperlite.targets, which nuget imports into the consuming project.
+
+    It exists because runtimes\ is not always honoured. A packages.config project - still a
+    real possibility on net48 - copies lib\ and nothing else, and a net48 PackageReference
+    project without a RuntimeIdentifier, a class library or a test project, does not copy
+    runtimes\ either. Hyperlite's loader probes the directory the assembly sits in, so the
+    companion has to be put there explicitly. Copying a file that PackageReference already
+    provided is harmless.
+
+    Both folders, because each reaches consumers the other does not: build\ is all that
+    packages.config knows, and only buildTransitive\ flows on through a package that
+    depends on this one. Hyperlite.Persistence references Hyperlite with build assets
+    excluded, the SDK's default for a project reference, so build\ alone never reaches
+    Hyperlite.Persistence's consumers. Nothing imports both: PackageReference takes
+    buildTransitive\ in place of build\.
+
+    The file has to be named after the package, not after the assembly: nuget imports
+    build\<tfm>\$(PackageId).targets and nothing else, and a file named otherwise is carried
+    along and never imported. Hence $(PackageId) on both sides rather than a literal, so a
+    change to the id cannot silently break the import.
+  -->
+  <ItemGroup>
+    <None Include="build\$(PackageId).targets"
+          Pack="true"
+          PackagePath="build\net48\$(PackageId).targets;build\net8.0\$(PackageId).targets;build\netstandard2.0\$(PackageId).targets;buildTransitive\net48\$(PackageId).targets;buildTransitive\net8.0\$(PackageId).targets;buildTransitive\netstandard2.0\$(PackageId).targets" />
+  </ItemGroup>
+
+  <!--
+    Build order. Hyperlite.Native has to be built before this project, because the Content
+    item above is copied during this project's build.
+
+    A ProjectReference rather than a solution level dependency, so that building this
+    project on its own works too:
+
+      ReferenceOutputAssembly  the vcxproj produces a native dll, not something to
+                               reference from C#
+      SkipGetTargetFrameworkProperties  a vcxproj has no TargetFramework to negotiate,
+                               and asking it for one is an error
+      SetPlatform              this project builds as AnyCPU with PlatformTarget x64,
+                               the vcxproj only has an x64 configuration
+      UndefineProperties       TargetFramework must not reach it. This project is
+                               multi-targeted, so without this each of the four inner
+                               builds asks for the vcxproj with a different
+                               TargetFramework, msbuild treats those as four different
+                               projects, and four cl.exe end up writing one pdb -
+                               fatal error C1041. Undefined, all four requests are the
+                               same project and it is built once.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Hyperlite.Native\Hyperlite.Native.vcxproj"
+                      ReferenceOutputAssembly="false"
+                      SkipGetTargetFrameworkProperties="true"
+                      SetPlatform="Platform=x64"
+                      UndefineProperties="TargetFramework"
+                      Private="false" />
+  </ItemGroup>
+
+  <!--
+    Runs after the project reference above has been built, not before: BeforeBuild is
+    ahead of ResolveProjectReferences, so a check there would fire before Hyperlite.Native
+    has had its turn and would fail every cold build.
+  -->
+  <Target Name="CheckNativeCompanion" AfterTargets="ResolveProjectReferences">
+    <Error Condition="!Exists('$(NativeCompanion)')"
+           Text="$(NativeCompanion) not found - build src\Hyperlite.Native first, or build the solution." />
+  </Target>
+
+  <!--
+    sqlite is compiled into the native companion from a vendored archive, so no package
+    manifest names it. sqlite.spdx.json does - version, download location, licence - and the
+    SBOM references it as an external document; see DescribeReferencedPackages.
+  -->
+  <ItemGroup>
+    <SbomExternalDocument Include="sqlite.spdx.json" />
+  </ItemGroup>
+</Project>

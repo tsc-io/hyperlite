@@ -1,0 +1,44 @@
+{
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "SQLite 3.54.1",
+  "documentNamespace": "https://github.com/tsc-io/hyperlite/deps/sqlite/3.54.1",
+  "creationInfo": {
+    "created": "2026-10-17T00:00:00Z",
+    "creators": [
+      "Organization: Thalmann Software&Consulting"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-Package-SQLite"
+  ],
+  "packages": [
+    {
+      "name": "SQLite",
+      "SPDXID": "SPDXRef-Package-SQLite",
+      "versionInfo": "3.54.1",
+      "downloadLocation": "https://www.sqlite.org/2026/sqlite-amalgamation-3540100.zip",
+      "filesAnalyzed": false,
+      "licenseConcluded": "blessing",
+      "licenseDeclared": "blessing",
+      "copyrightText": "NOASSERTION",
+      "supplier": "NOASSERTION",
+      "comment": "Compiled into Hyperlite.Native.win-x64.dll from the amalgamation archive vendored in deps/sqlite.",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:generic/sqlite@3.54.1?download_url=https://www.sqlite.org/2026/sqlite-amalgamation-3540100.zip"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-SQLite"
+    }
+  ]
+}
