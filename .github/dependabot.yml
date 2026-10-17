@@ -16,8 +16,20 @@ updates:
     schedule:
       interval: weekly
 
+  # The C# projects by name, not the solution: from / Dependabot walks Hyperlite.sln, whose
+  # C++ projects import the Visual C++ targets, which its Linux runner does not have - it then
+  # fails before any update. The versions are central, in Directory.Packages.props.
   - package-ecosystem: nuget
-    directory: /
+    directories:
+      - /src/Hyperlite
+      - /src/Hyperlite.Persistence
+      - /src/Hyperlite.Serialization
+      - /src/Hyperlite.Explorer
+      - /tests/Hyperlite.Test
+      - /tests/Hyperlite.Persistence.Test
+      - /tests/Hyperlite.Serialization.Test
+      - /tests/Hyperlite.Smoke
+      - /bench/Hyperlite.Bench
     schedule:
       interval: weekly
     ignore:
