@@ -11,10 +11,7 @@
 // join them.
 
 #include "abi.h"
-
-// windows.h defines min/max as macros, which breaks std::min below
-#define NOMINMAX
-#include <windows.h>
+#include "platform.h"
 
 #include <algorithm>
 #include <chrono>
@@ -46,17 +43,17 @@ void die(const char* what, std::int32_t rc)
     } while (false)
 
 /// Regex callbacks are never exercised here, but the abi wants them set.
-void* __cdecl re_compile(const char*, std::int32_t)
+void* HYPERLITE_CALL re_compile(const char*, std::int32_t)
 {
     return nullptr;
 }
 
-std::int32_t __cdecl re_match(void*, const char*, std::int32_t)
+std::int32_t HYPERLITE_CALL re_match(void*, const char*, std::int32_t)
 {
     return 0;
 }
 
-void __cdecl re_release(void*) {}
+void HYPERLITE_CALL re_release(void*) {}
 
 std::string row_key(const char* prefix, int i)
 {
@@ -103,8 +100,7 @@ void measure(const char* name, F&& body)
     {
         if (s.name == name)
         {
-            // parenthesized, so a windows.h min macro cannot intercept it
-            s.best = (std::min)(s.best, ms);
+            s.best = std::min(s.best, ms);
             return;
         }
     }
@@ -258,7 +254,7 @@ void delete_single(void* tbl, int n, const char* prefix)
 
 void run_once(int n, bool report)
 {
-    ::DeleteFileA("nbench.db");
+    remove_file("nbench.db");
 
     t_cfg cfg{};
     dd->cfg_defaults(&cfg);
@@ -302,24 +298,15 @@ void run_once(int n, bool report)
     MUST(dd->ns_release(ns), "ns_release");
     MUST(dd->cli_release(cli), "cli_release");
     MUST(dd->env_close(env), "env_close");
-    ::DeleteFileA("nbench.db");
+    remove_file("nbench.db");
 }
 } // namespace
 
 int run_bench(int cells, int repetitions)
 {
-    HMODULE lib = ::LoadLibraryW(L"Hyperlite.Native.win-x64.dll");
-    if (!lib)
+    dd = load_dispatch();
+    if (!dd)
     {
-        std::printf("FAIL LoadLibrary %lu\n", ::GetLastError());
-        return 1;
-    }
-
-    using entry_t = std::int32_t(__cdecl*)(std::int32_t, const t_dispatch**);
-    auto entry = reinterpret_cast<entry_t>(::GetProcAddress(lib, reinterpret_cast<LPCSTR>(1)));
-    if (!entry || entry(k_abi_revision, &dd) != 0 || !dd)
-    {
-        std::printf("FAIL bootstrap\n");
         return 1;
     }
 

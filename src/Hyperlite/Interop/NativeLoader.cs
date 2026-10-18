@@ -235,7 +235,11 @@
                 return Windows.LoadLibraryEx(path, IntPtr.Zero, Windows.LoadWithAlteredSearchPath);
             }
 
-            return Unix.dlopen(path, Unix.RtldNow | Unix.RtldLocal);
+#if NETCOREAPP
+            return NativeLibrary.TryLoad(path, out var handle) ? handle : IntPtr.Zero;
+#else
+            return Unix.Open(path);
+#endif
 #endif
         }
 
@@ -250,7 +254,11 @@
                 return Windows.GetProcAddress(handle, new IntPtr(EntryPointOrdinal));
             }
 
-            return Unix.dlsym(handle, EntryPointName);
+#if NETCOREAPP
+            return NativeLibrary.TryGetExport(handle, EntryPointName, out var entry) ? entry : IntPtr.Zero;
+#else
+            return Unix.Symbol(handle, EntryPointName);
+#endif
 #endif
         }
 
@@ -269,18 +277,59 @@
             internal static extern IntPtr GetProcAddress(IntPtr module, IntPtr ordinal);
         }
 
-#if !NETFRAMEWORK
+#if !NETFRAMEWORK && !NETCOREAPP
+        /// <summary>
+        /// dlopen for netstandard2.0, which has no NativeLibrary. Since glibc 2.34 it lives in
+        /// libc.so.6 and libdl.so.2 is only a stub that may not be installed, older glibc has it
+        /// in libdl.so.2 only.
+        /// </summary>
         private static class Unix
         {
-            internal const int RtldNow = 2;
+            private const int RtldNow = 2;
 
-            internal const int RtldLocal = 0;
+            private const int RtldLocal = 0;
 
-            [DllImport("libdl", CharSet = CharSet.Ansi, BestFitMapping = false)]
-            internal static extern IntPtr dlopen(string fileName, int flags);
+            private static bool useLibc;
 
-            [DllImport("libdl", CharSet = CharSet.Ansi, BestFitMapping = false)]
-            internal static extern IntPtr dlsym(IntPtr handle, string symbol);
+            internal static IntPtr Open(string fileName)
+            {
+                if (!useLibc)
+                {
+                    try
+                    {
+                        return Dl.dlopen(fileName, RtldNow | RtldLocal);
+                    }
+                    catch (DllNotFoundException)
+                    {
+                        useLibc = true;
+                    }
+                }
+
+                return Libc.dlopen(fileName, RtldNow | RtldLocal);
+            }
+
+            internal static IntPtr Symbol(IntPtr handle, string symbol)
+            {
+                return useLibc ? Libc.dlsym(handle, symbol) : Dl.dlsym(handle, symbol);
+            }
+
+            private static class Dl
+            {
+                [DllImport("libdl.so.2", CharSet = CharSet.Ansi, BestFitMapping = false)]
+                internal static extern IntPtr dlopen(string fileName, int flags);
+
+                [DllImport("libdl.so.2", CharSet = CharSet.Ansi, BestFitMapping = false)]
+                internal static extern IntPtr dlsym(IntPtr handle, string symbol);
+            }
+
+            private static class Libc
+            {
+                [DllImport("libc.so.6", CharSet = CharSet.Ansi, BestFitMapping = false)]
+                internal static extern IntPtr dlopen(string fileName, int flags);
+
+                [DllImport("libc.so.6", CharSet = CharSet.Ansi, BestFitMapping = false)]
+                internal static extern IntPtr dlsym(IntPtr handle, string symbol);
+            }
         }
 #endif
     }

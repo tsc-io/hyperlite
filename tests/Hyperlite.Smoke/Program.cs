@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -71,9 +72,9 @@ internal static class Program
     {
         foreach (var stale in Database)
         {
-            if (System.IO.File.Exists(stale))
+            if (File.Exists(stale))
             {
-                System.IO.File.Delete(stale);
+                File.Delete(stale);
             }
         }
     }
@@ -423,29 +424,55 @@ internal static class Program
             Check((bool)context.Properties["Ht4n.SQLite.Synchronous"], "Synchronous yes");
         }
 
-        using (var context = Context.Create("Provider=SQLite; Uri=file:///c/Temp/chain-uri.db"))
+        // drive letters and backslashes on Windows, the path as it is elsewhere
+        var windows = Path.DirectorySeparatorChar == '\\';
+        if (windows)
         {
-            Check((string)context.Properties["Ht4n.SQLite.Filename"] == "c:\\Temp\\chain-uri.db",
-                "file:///c/... becomes c:\\...");
-        }
+            using (var context = Context.Create("Provider=SQLite; Uri=file:///c/Temp/chain-uri.db"))
+            {
+                Check((string)context.Properties["Ht4n.SQLite.Filename"] == "c:\\Temp\\chain-uri.db",
+                    "file:///c/... becomes c:\\...");
+            }
 
-        using (var context = Context.Create("Provider=SQLite; Uri=file:///c:/Temp/chain-uri.db"))
-        {
-            Check((string)context.Properties["Ht4n.SQLite.Filename"] == "c:\\Temp\\chain-uri.db",
-                "file:///c:/... becomes c:\\...");
-        }
+            using (var context = Context.Create("Provider=SQLite; Uri=file:///c:/Temp/chain-uri.db"))
+            {
+                Check((string)context.Properties["Ht4n.SQLite.Filename"] == "c:\\Temp\\chain-uri.db",
+                    "file:///c:/... becomes c:\\...");
+            }
 
-        using (var context = Context.Create("Provider=SQLite; Uri=file:///c/My%20Documents/chain-uri.db"))
-        {
-            Check((string)context.Properties["Ht4n.SQLite.Filename"] == "c:\\My Documents\\chain-uri.db",
-                "percent decoding");
-        }
+            using (var context = Context.Create("Provider=SQLite; Uri=file:///c/My%20Documents/chain-uri.db"))
+            {
+                Check((string)context.Properties["Ht4n.SQLite.Filename"] == "c:\\My Documents\\chain-uri.db",
+                    "percent decoding");
+            }
 
-        using (var context = Context.Create(
-            "Provider=SQLite; Uri=\"file:///c/My Documents/chain-uri.db\""))
+            using (var context = Context.Create(
+                "Provider=SQLite; Uri=\"file:///c/My Documents/chain-uri.db\""))
+            {
+                Check((string)context.Properties["Ht4n.SQLite.Filename"] == "c:\\My Documents\\chain-uri.db",
+                    "quoted uri with spaces");
+            }
+        }
+        else
         {
-            Check((string)context.Properties["Ht4n.SQLite.Filename"] == "c:\\My Documents\\chain-uri.db",
-                "quoted uri with spaces");
+            using (var context = Context.Create("Provider=SQLite; Uri=file:///tmp/chain-uri.db"))
+            {
+                Check((string)context.Properties["Ht4n.SQLite.Filename"] == "/tmp/chain-uri.db",
+                    "file:///tmp/... stays /tmp/...");
+            }
+
+            using (var context = Context.Create("Provider=SQLite; Uri=file:///tmp/My%20Documents/chain-uri.db"))
+            {
+                Check((string)context.Properties["Ht4n.SQLite.Filename"] == "/tmp/My Documents/chain-uri.db",
+                    "percent decoding");
+            }
+
+            using (var context = Context.Create(
+                "Provider=SQLite; Uri=\"file:///tmp/My Documents/chain-uri.db\""))
+            {
+                Check((string)context.Properties["Ht4n.SQLite.Filename"] == "/tmp/My Documents/chain-uri.db",
+                    "quoted uri with spaces");
+            }
         }
 
         using (var context = Context.Create(
@@ -455,9 +482,10 @@ internal static class Program
                 "quoted filename in command line form");
         }
 
-        using (var context = Context.Create("Provider=SQLite; Uri=file://%TEMP%/chain-uri.db"))
+        using (var context = Context.Create(
+            "Provider=SQLite; Uri=file://" + (windows ? "%TEMP%" : "%HOME%") + "/chain-uri.db"))
         {
-            Check(((string)context.Properties["Ht4n.SQLite.Filename"]).EndsWith("\\chain-uri.db"),
+            Check(((string)context.Properties["Ht4n.SQLite.Filename"]).EndsWith(Path.DirectorySeparatorChar + "chain-uri.db"),
                 "environment expansion");
         }
 

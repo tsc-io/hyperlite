@@ -1,15 +1,15 @@
 ﻿// Native smoke test for Hyperlite.Native: drives the dispatch table directly so the
 // storage engine can be validated before the managed layer exists.
 
-#include <windows.h>
-
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <regex>
 #include <string>
 #include <vector>
 
 #include "abi.h"
+#include "platform.h"
 
 using namespace hyperlite::abi;
 
@@ -53,7 +53,7 @@ static void report(std::int32_t rc, const char* what)
 // managed style regex callbacks, std::regex standing in for .NET Regex
 //
 
-static void* __cdecl re_compile(const char* pattern, std::int32_t n)
+static void* HYPERLITE_CALL re_compile(const char* pattern, std::int32_t n)
 {
     try
     {
@@ -66,7 +66,7 @@ static void* __cdecl re_compile(const char* pattern, std::int32_t n)
     }
 }
 
-static std::int32_t __cdecl re_match(void* re, const char* text, std::int32_t n)
+static std::int32_t HYPERLITE_CALL re_match(void* re, const char* text, std::int32_t n)
 {
     try
     {
@@ -79,7 +79,7 @@ static std::int32_t __cdecl re_match(void* re, const char* text, std::int32_t n)
     }
 }
 
-static void __cdecl re_release(void* re)
+static void HYPERLITE_CALL re_release(void* re)
 {
     delete static_cast<std::regex*>(re);
 }
@@ -111,32 +111,6 @@ static t_cell make_cell(const char* row, const char* cf, const char* cq, const c
 /// The native floor benchmark, in bench.cpp.
 int run_bench(int cells, int repetitions);
 
-/// Whether a connection holds a read lock on the database file. On Windows sqlite takes a
-/// shared byte range lock for it, at 0x40000002, 510 bytes, which an exclusive lock taken
-/// without waiting cannot get past - an outside view of whether a read transaction is open.
-/// With the rollback journal only, the default: in WAL mode sqlite keeps that lock between
-/// transactions.
-static bool read_locked(const wchar_t* path)
-{
-    const HANDLE file = ::CreateFileW(path, GENERIC_READ | GENERIC_WRITE,
-                                      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                      nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE)
-    {
-        return false;
-    }
-    OVERLAPPED at{};
-    at.Offset = 0x40000002;
-    const bool locked =
-        !::LockFileEx(file, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY, 0, 510, 0, &at);
-    if (!locked)
-    {
-        ::UnlockFileEx(file, 0, 510, 0, &at);
-    }
-    ::CloseHandle(file);
-    return locked;
-}
-
 int main(int argc, char** argv)
 {
     // "--bench [cells] [repetitions]" measures instead of asserting, see bench.cpp
@@ -147,24 +121,9 @@ int main(int argc, char** argv)
         return run_bench(cells, reps);
     }
 
-    HMODULE lib = ::LoadLibraryW(L"Hyperlite.Native.win-x64.dll");
-    if (!lib)
+    d = load_dispatch();
+    if (!d)
     {
-        std::printf("FAIL LoadLibrary %lu\n", ::GetLastError());
-        return 1;
-    }
-
-    using entry_t = std::int32_t(__cdecl*)(std::int32_t, const t_dispatch**);
-    auto entry = reinterpret_cast<entry_t>(::GetProcAddress(lib, reinterpret_cast<LPCSTR>(1)));
-    if (!entry)
-    {
-        std::printf("FAIL GetProcAddress by ordinal %lu\n", ::GetLastError());
-        return 1;
-    }
-
-    if (entry(k_abi_revision, &d) != 0 || !d)
-    {
-        std::printf("FAIL bootstrap\n");
         return 1;
     }
     std::printf("abi revision %d, sqlite %s\n", d->abi_revision(), d->sqlite_version());
@@ -190,7 +149,7 @@ int main(int argc, char** argv)
     //
     // environment
     //
-    ::DeleteFileW(L"smoke.db");
+    remove_file("smoke.db");
     void* env = nullptr;
     OK(d->env_get_or_create("smoke.db", -1, &cfg, &env), "env_get_or_create");
     if (!env)
@@ -782,7 +741,7 @@ int main(int argc, char** argv)
     //
     // Its own database, because it deliberately abandons a mutator.
     {
-        ::DeleteFileW(L"smoke-tx.db");
+        remove_file("smoke-tx.db");
 
         void* e2 = nullptr;
         OK(d->env_get_or_create("smoke-tx.db", -1, &cfg, &e2), "tx env_get_or_create");
@@ -823,7 +782,7 @@ int main(int argc, char** argv)
         OK(d->ns_release(n3), "tx ns_release again");
         OK(d->cli_release(c3), "tx cli_release again");
         OK(d->env_close(e2), "tx env_close again");
-        ::DeleteFileW(L"smoke-tx.db");
+        remove_file("smoke-tx.db");
 
         // note the mutator handle is deliberately never released, so it leaks here; that
         // is the point of the case and the process is about to end anyway
@@ -836,7 +795,7 @@ int main(int argc, char** argv)
     //
     // Its own database, so that nothing else holds a lock on it.
     {
-        ::DeleteFileW(L"smoke-read.db");
+        remove_file("smoke-read.db");
 
         void* e4 = nullptr;
         OK(d->env_get_or_create("smoke-read.db", -1, &cfg, &e4), "read env_get_or_create");
@@ -881,14 +840,14 @@ int main(int argc, char** argv)
         void* second = nullptr;
         OK(d->tbl_scn_create(t4, intervals, 0, 0, &first), "read scn_create first");
         OK(d->tbl_scn_create(t4, intervals, 0, 0, &second), "read scn_create second");
-        CHECK(!read_locked(L"smoke-read.db"), "a read transaction locks nothing before a read");
+        CHECK(!read_locked("smoke-read.db"), "a read transaction locks nothing before a read");
 
         drain(first);
-        CHECK(read_locked(L"smoke-read.db"),
+        CHECK(read_locked("smoke-read.db"),
               "the read transaction outlasts the first of the scanners sharing it");
 
         drain(second);
-        CHECK(!read_locked(L"smoke-read.db"), "the last scanner to end ends the read transaction");
+        CHECK(!read_locked("smoke-read.db"), "the last scanner to end ends the read transaction");
 
         OK(d->scn_release(first), "read scn_release first");
         OK(d->scn_release(second), "read scn_release second");
@@ -897,7 +856,7 @@ int main(int argc, char** argv)
         OK(d->ns_release(n4), "read ns_release");
         OK(d->cli_release(c4), "read cli_release");
         OK(d->env_close(e4), "read env_close");
-        ::DeleteFileW(L"smoke-read.db");
+        remove_file("smoke-read.db");
     }
 
     std::printf("\n%s (%d failure%s)\n", g_failures == 0 ? "PASS" : "FAILED", g_failures,

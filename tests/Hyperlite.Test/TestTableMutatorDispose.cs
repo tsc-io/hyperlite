@@ -2,6 +2,7 @@
 {
     using System.IO;
     using System.Linq;
+    using System.Runtime.InteropServices;
     using System.Text;
 
     using Hyperlite;
@@ -23,8 +24,15 @@
     {
         private const string Database = "mutator-dispose.db";
 
-        // sqlite's PENDING_BYTE, see its os_win.c
+        // sqlite's PENDING_BYTE, see its os_win.c and os_unix.c
         private const long PendingByte = 0x40000000;
+
+        // fcntl.h, x86-64 Linux
+        private const int OfdSetLock = 37;
+
+        private const short WriteLock = 1;
+
+        private const short Unlock = 2;
 
         private const string Schema =
             "<Schema><AccessGroup name=\"default\"><ColumnFamily><Name>a</Name></ColumnFamily></AccessGroup></Schema>";
@@ -56,11 +64,9 @@
                         var mutator = table.CreateMutator();
                         mutator.Set(new Key("r", "a"), Encoding.UTF8.GetBytes("v"));
 
-                        // Windows only, as Hyperlite is
-#pragma warning disable CA1416
                         using (var file = new FileStream(Database, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete))
                         {
-                            file.Lock(PendingByte, 1);
+                            LockPendingByte(file, true);
                             try
                             {
                                 mutator.Dispose();
@@ -71,10 +77,9 @@
                             }
                             finally
                             {
-                                file.Unlock(PendingByte, 1);
+                                LockPendingByte(file, false);
                             }
                         }
-#pragma warning restore CA1416
 
                         // released all the same, and a second dispose does nothing
                         Assert.IsTrue(mutator.IsDisposed);
@@ -97,6 +102,40 @@
             }
         }
 
+        /// <summary>
+        ///     Takes or releases the pending byte. On Linux not with FileStream.Lock: that is a
+        ///     POSIX lock, and those never conflict within one process - an open file description
+        ///     lock does, with sqlite's POSIX locks as well.
+        /// </summary>
+        private static void LockPendingByte(FileStream file, bool locked)
+        {
+            if (Path.DirectorySeparatorChar == '\\')
+            {
+#pragma warning disable CA1416
+                if (locked)
+                {
+                    file.Lock(PendingByte, 1);
+                }
+                else
+                {
+                    file.Unlock(PendingByte, 1);
+                }
+#pragma warning restore CA1416
+                return;
+            }
+
+            // from the start of the file; the pid has to be 0 for an open file description lock
+            var range = new FileLock { Type = locked ? WriteLock : Unlock, Whence = 0, Start = PendingByte, Length = 1, Pid = 0 };
+            var descriptor = (int)file.SafeFileHandle.DangerousGetHandle();
+            if (fcntl(descriptor, OfdSetLock, ref range) != 0)
+            {
+                throw new IOException("fcntl F_OFD_SETLK failed, errno " + Marshal.GetLastWin32Error());
+            }
+        }
+
+        [DllImport("libc.so.6", SetLastError = true)]
+        private static extern int fcntl(int descriptor, int command, ref FileLock range);
+
         private static void Discard()
         {
             foreach (var stale in new[] { Database, Database + "-journal" })
@@ -106,6 +145,21 @@
                     File.Delete(stale);
                 }
             }
+        }
+
+        // struct flock
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FileLock
+        {
+            public short Type;
+
+            public short Whence;
+
+            public long Start;
+
+            public long Length;
+
+            public int Pid;
         }
     }
 }

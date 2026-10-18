@@ -148,7 +148,8 @@ std::map<std::string, std::pair<sqlite::env_ptr, int>> g_envs;
 
 // The key is the resolved path rather than the string the caller passed: "db.sqlite",
 // ".\db.sqlite" and an absolute path all name one file, and keying on the spelling would
-// hand out one connection per spelling. Windows paths are compared case insensitively.
+// hand out one connection per spelling. Windows paths are compared case insensitively, Linux
+// paths as they are.
 std::string env_key(const std::string& filename)
 {
     if (filename == "memory")
@@ -167,8 +168,10 @@ std::string env_key(const std::string& filename)
         // cannot see through is a symlink or a junction, and two spellings across one of
         // those get a connection each, as they did before there was a registry at all.
         std::string key = std::filesystem::absolute(filename).lexically_normal().string();
+#if defined(_WIN32)
         std::transform(key.begin(), key.end(), key.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+#endif
         return key;
     }
     catch (...)
@@ -1382,8 +1385,9 @@ std::int32_t HYPERLITE_CALL fn_mut_del(void* h, const t_cell* c)
             ks.column_qualifier_len = static_cast<std::size_t>(c->cq_n);
             // a delete's flag follows from what was specified, unless the caller asked
             // for a specific version
-            ks.flag = c->flag == FLAG_DELETE_CELL_VERSION ? FLAG_DELETE_CELL_VERSION
-                                                          : FLAG_DELETE(c->cf, c->cq);
+            ks.flag = c->flag == FLAG_DELETE_CELL_VERSION
+                          ? static_cast<std::uint8_t>(FLAG_DELETE_CELL_VERSION)
+                          : FLAG_DELETE(c->cf, c->cq);
             ks.timestamp = static_cast<std::int64_t>(TIMESTAMP(c->ts));
             ks.revision = AUTO_ASSIGN;
 

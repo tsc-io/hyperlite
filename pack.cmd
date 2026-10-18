@@ -38,6 +38,11 @@ rem the same project files gives the same result, so the binaries built still ma
 "%msbuild%" "%~dp0Hyperlite.sln" -t:Restore -p:Configuration=%configuration% -p:Platform=x64 -v:minimal -nologo
 if errorlevel 1 goto :failed
 
+rem The packages go first: nuget packs only when an input is newer than the package, and a file
+rem that is gone - the Linux library, say - is newer than nothing, so the old package, with the
+rem file still in it, would stay.
+del /q "%~dp0dist\%configuration%\*.nupkg" 2>nul
+
 "%msbuild%" "%~dp0Hyperlite.sln" -t:Pack -p:Configuration=%configuration% -p:Platform=x64 -p:NoBuild=true -v:minimal -nologo
 if errorlevel 1 goto :failed
 

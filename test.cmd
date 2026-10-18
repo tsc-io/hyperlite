@@ -62,6 +62,15 @@ for %%f in (%frameworks%) do call :suite tests\Hyperlite.Test\Hyperlite.Test.csp
 for %%f in (%frameworks%) do call :suite tests\Hyperlite.Persistence.Test\Hyperlite.Persistence.Test.csproj %%f
 for %%f in (%frameworks%) do call :suite tests\Hyperlite.Serialization.Test\Hyperlite.Serialization.Test.csproj %%f
 
+rem The same again on Linux, net8.0 and net10.0, when there is a WSL distribution to run them
+rem in - see build-linux.sh
+call :wsl
+if not errorlevel 1 (
+    echo.
+    echo === linux-x64 ===
+    wsl.exe --cd "%~dp0." -e bash ./build-linux.sh test %configuration% || set /a failures+=1
+)
+
 echo.
 if %failures% == 0 (
     echo TESTS OK ^(%configuration%^)
@@ -95,4 +104,10 @@ dotnet test "%~dp0%1" -c %configuration% --no-build -f %2 --nologo ^
     --results-directory "%~dp0build\%configuration%\%2\TestResults" ^
     --logger "trx;LogFileName=%~n1.%2.trx"
 if errorlevel 1 set /a failures+=1
+exit /b 0
+
+:wsl
+if "%GITHUB_ACTIONS%" == "true" exit /b 1
+rem || rather than errorlevel: wsl.exe fails with -1, which "if errorlevel 1" does not see
+wsl.exe -e true >nul 2>&1 || exit /b 1
 exit /b 0

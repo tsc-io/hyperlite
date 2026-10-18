@@ -30,8 +30,9 @@ be installed: a database is a file, opened in process.
         dotnet add package Hyperlite
 
 or `Hyperlite.Persistence` for the object mapper, which brings `Hyperlite` along. It runs on
-Windows x64 only, and the project has to build for x64 (`<PlatformTarget>x64</PlatformTarget>`),
-because the native half does.
+Windows x64 and on Linux x64 with glibc 2.35 or newer - Ubuntu 22.04, Debian 12 - and the
+project has to build for x64 (`<PlatformTarget>x64</PlatformTarget>`), because the native half
+does.
 
 Cells - a table, a mutator to write, a scanner to read:
 
@@ -187,7 +188,7 @@ The suites under `tests` show the rest of the api.
 | the libraries ship for | `net48`, `net8.0`, `net10.0`, `netstandard2.0`; `Hyperlite.Serialization` for `netstandard2.0` alone |
 | the suites run on | `net48`, `net7.0`, `net8.0`, `net10.0` |
 
-Windows x64 only, because the native half is. `netstandard2.0` is there so that consumers on
+Windows x64 and Linux x64, because the native half is; Linux from .NET 8 on. `netstandard2.0` is there so that consumers on
 `net461` through `net472`, and on `net5.0` through `net7.0`, resolve a real assembly rather
 than failing to resolve one or silently taking the `net48` build.
 
@@ -201,6 +202,10 @@ than failing to resolve one or silently taking the `net48` build.
   clang-format is older than `.clang-format` needs.
 - The .NET 10 SDK, which `global.json` asks for, the .NET 8 and .NET 7 runtimes the test
   legs run on, and the .NET Framework 4.8 developer pack.
+- For the Linux library, a WSL distribution - Ubuntu 22.04, whose glibc is the oldest it is
+  built for - with gcc, cmake, rsync, the .NET 10 SDK and the .NET 8 runtime; see
+  `build-linux.sh`. Without one the scripts build and test for Windows only, and the package
+  `pack.cmd` makes is Windows only too, with a warning.
 
 Nothing else. sqlite is vendored under `deps` as its amalgamation archive, which the build
 unpacks, so there is no sibling repository to clone and nothing to restore for the native
@@ -208,9 +213,11 @@ half.
 
 ### Build, test, pack
 
-        build.cmd            all projects, all frameworks, Release
-        test.cmd             the native test, the smoke harness, then the three suites
+        build.cmd            all projects, all frameworks, Release; the Linux library in WSL
+        test.cmd             the native test, the smoke harness, then the three suites; in WSL
+                             the same on net8.0 and net10.0
         pack.cmd             the three packages and the explorer zip, into dist\<configuration>
+        build-linux.sh       the Linux half alone, in WSL or on Linux
 
 Each takes `Debug` as an optional argument. Or open `Hyperlite.sln`.
 

@@ -87,7 +87,11 @@
         [TestInitialize]
         public void TestInitialize()
         {
-            NativeMethods.SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_AWAYMODE_REQUIRED);
+            if (Path.DirectorySeparatorChar == '\\')
+            {
+                NativeMethods.SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_AWAYMODE_REQUIRED);
+            }
+
             ClearNamespace();
         }
 

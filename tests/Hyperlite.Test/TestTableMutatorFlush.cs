@@ -64,7 +64,7 @@
                             }
 
                             // the scan is still open, and what the flush reported has to be on disk
-                            Assert.IsTrue(CreateHardLink(Link, Database, IntPtr.Zero), "hard link");
+                            Assert.IsTrue(HardLink(Link, Database), "hard link");
                             using (var other = Context.Create("Provider=SQLite; Uri=file://" + Link))
                             using (var otherClient = other.CreateClient())
                             using (var otherNs = otherClient.OpenNamespace("test"))
@@ -190,8 +190,18 @@
             }
         }
 
+        private static bool HardLink(string fileName, string existingFileName)
+        {
+            return Path.DirectorySeparatorChar == '\\'
+                ? CreateHardLink(fileName, existingFileName, IntPtr.Zero)
+                : link(existingFileName, fileName) == 0;
+        }
+
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool CreateHardLink(string fileName, string existingFileName, IntPtr securityAttributes);
+
+        [DllImport("libc.so.6", SetLastError = true)]
+        private static extern int link(string existingFileName, string fileName);
 
         private static bool SpinUntilDone(Task task, TimeSpan timeout)
         {

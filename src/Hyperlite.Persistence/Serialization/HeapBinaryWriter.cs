@@ -89,16 +89,13 @@
         /// </summary>
         public unsafe int Length => (int)(this.ptr - (byte*)this.buffer);
 
-        public unsafe byte[] ToArray()
+        public byte[] ToArray()
         {
             var array = new byte[this.Count];
 
             if (array.Length > 0)
             {
-                fixed (byte* target = &array[0])
-                {
-                    memcpy(target, this.buffer, new UIntPtr((uint)array.Length));
-                }
+                Marshal.Copy(this.buffer, array, 0, array.Length);
             }
 
             return array;
@@ -145,7 +142,7 @@
 
             this.EnsureBuffer(l);
             var p = this.ptr;
-            memcpy(p, value, new UIntPtr((uint)l));
+            Marshal.Copy(value, 0, (IntPtr)p, l);
 
             this.ptr += l;
         }
@@ -392,12 +389,6 @@
 
             base.Dispose(disposing);
         }
-
-        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
-        private static extern unsafe IntPtr memcpy(byte* dest, byte[] src, UIntPtr count);
-
-        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
-        private static extern unsafe IntPtr memcpy(byte* dest, IntPtr src, UIntPtr count);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe void EnsureBuffer(int requiredCapacity)

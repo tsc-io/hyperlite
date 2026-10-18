@@ -90,40 +90,66 @@
                     Assert.AreEqual("test.db", context.Properties["Ht4n.SQLite.Filename"]);
                 }
 
+                // drive letters and backslashes on Windows, the path as it is elsewhere
+                var windows = Path.DirectorySeparatorChar == '\\';
+
                 using (var context = Context.Create("Provider=SQLite; Uri=file://Temp/test.db"))
                 {
                     Assert.AreEqual("SQLite", context.Properties["Provider"]);
-                    Assert.AreEqual("Temp\\test.db", context.Properties["Ht4n.SQLite.Filename"]);
+                    Assert.AreEqual(windows ? "Temp\\test.db" : "Temp/test.db", context.Properties["Ht4n.SQLite.Filename"]);
                 }
 
-                using (var context = Context.Create("Provider=SQLite; Uri=file:///c/Temp/test.db"))
+                if (windows)
                 {
-                    Assert.AreEqual("SQLite", context.Properties["Provider"]);
-                    Assert.AreEqual("c:\\Temp\\test.db", context.Properties["Ht4n.SQLite.Filename"]);
+                    using (var context = Context.Create("Provider=SQLite; Uri=file:///c/Temp/test.db"))
+                    {
+                        Assert.AreEqual("SQLite", context.Properties["Provider"]);
+                        Assert.AreEqual("c:\\Temp\\test.db", context.Properties["Ht4n.SQLite.Filename"]);
+                    }
+
+                    using (var context = Context.Create("Provider=SQLite; Uri=file:///c:/Temp/test.db"))
+                    {
+                        Assert.AreEqual("SQLite", context.Properties["Provider"]);
+                        Assert.AreEqual("c:\\Temp\\test.db", context.Properties["Ht4n.SQLite.Filename"]);
+                    }
+
+                    using (var context = Context.Create("Provider=SQLite; Uri=\"file:///c/My Documents/Temp/test.db\""))
+                    {
+                        Assert.AreEqual("SQLite", context.Properties["Provider"]);
+                        Assert.AreEqual("c:\\My Documents\\Temp\\test.db", context.Properties["Ht4n.SQLite.Filename"]);
+                    }
+
+                    using (var context = Context.Create("Provider=SQLite; Uri=file:///c/My%20Documents/Temp/test.db"))
+                    {
+                        Assert.AreEqual("SQLite", context.Properties["Provider"]);
+                        Assert.AreEqual("c:\\My Documents\\Temp\\test.db", context.Properties["Ht4n.SQLite.Filename"]);
+                    }
+                }
+                else
+                {
+                    using (var context = Context.Create("Provider=SQLite; Uri=file:///tmp/test.db"))
+                    {
+                        Assert.AreEqual("SQLite", context.Properties["Provider"]);
+                        Assert.AreEqual("/tmp/test.db", context.Properties["Ht4n.SQLite.Filename"]);
+                    }
+
+                    using (var context = Context.Create("Provider=SQLite; Uri=\"file:///tmp/My Documents/test.db\""))
+                    {
+                        Assert.AreEqual("SQLite", context.Properties["Provider"]);
+                        Assert.AreEqual("/tmp/My Documents/test.db", context.Properties["Ht4n.SQLite.Filename"]);
+                    }
+
+                    using (var context = Context.Create("Provider=SQLite; Uri=file:///tmp/My%20Documents/test.db"))
+                    {
+                        Assert.AreEqual("SQLite", context.Properties["Provider"]);
+                        Assert.AreEqual("/tmp/My Documents/test.db", context.Properties["Ht4n.SQLite.Filename"]);
+                    }
                 }
 
-                using (var context = Context.Create("Provider=SQLite; Uri=file:///c:/Temp/test.db"))
+                using (var context = Context.Create("Provider=SQLite; Uri=file://" + (windows ? "%TEMP%" : "%HOME%") + "/test.db"))
                 {
                     Assert.AreEqual("SQLite", context.Properties["Provider"]);
-                    Assert.AreEqual("c:\\Temp\\test.db", context.Properties["Ht4n.SQLite.Filename"]);
-                }
-
-                using (var context = Context.Create("Provider=SQLite; Uri=\"file:///c/My Documents/Temp/test.db\""))
-                {
-                    Assert.AreEqual("SQLite", context.Properties["Provider"]);
-                    Assert.AreEqual("c:\\My Documents\\Temp\\test.db", context.Properties["Ht4n.SQLite.Filename"]);
-                }
-
-                using (var context = Context.Create("Provider=SQLite; Uri=file:///c/My%20Documents/Temp/test.db"))
-                {
-                    Assert.AreEqual("SQLite", context.Properties["Provider"]);
-                    Assert.AreEqual("c:\\My Documents\\Temp\\test.db", context.Properties["Ht4n.SQLite.Filename"]);
-                }
-
-                using (var context = Context.Create("Provider=SQLite; Uri=file://%TEMP%/test.db"))
-                {
-                    Assert.AreEqual("SQLite", context.Properties["Provider"]);
-                    Assert.IsTrue(((string)context.Properties["Ht4n.SQLite.Filename"]).EndsWith("\\test.db"));
+                    Assert.IsTrue(((string)context.Properties["Ht4n.SQLite.Filename"]).EndsWith(Path.DirectorySeparatorChar + "test.db"));
                 }
 
                 using (var context = Context.Create("--Provider SQLite --Ht4n.SQLite.Filename \"My Documents/test.db\""))

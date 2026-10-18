@@ -178,7 +178,7 @@
             {
                 fixed (byte* p = &buffer[index])
                 {
-                    memcpy(p, this.ptr, new UIntPtr((uint)byteCount));
+                    Buffer.MemoryCopy(this.ptr, p, byteCount, byteCount);
                 }
 
                 this.ptr += byteCount;
@@ -213,7 +213,7 @@
             {
                 fixed (byte* p = &result[0])
                 {
-                    memcpy(p, this.ptr, new UIntPtr((uint)byteCount));
+                    Buffer.MemoryCopy(this.ptr, p, byteCount, byteCount);
                 }
 
                 this.ptr += byteCount;
@@ -420,10 +420,6 @@
             }
             base.Dispose(disposing);
         }
-
-        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl,
-            SetLastError = false)]
-        private static extern unsafe IntPtr memcpy(byte* dest, byte* src, UIntPtr count);
 
         private unsafe int ReadStringLength()
         {

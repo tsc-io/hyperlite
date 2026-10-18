@@ -392,7 +392,7 @@
               "      \"licenseDeclared\": \"blessing\",",
               "      \"copyrightText\": \"NOASSERTION\",",
               "      \"supplier\": \"NOASSERTION\",",
-              "      \"comment\": \"Compiled into Hyperlite.Native.win-x64.dll from the amalgamation archive vendored in deps/sqlite.\",",
+              "      \"comment\": \"Compiled into Hyperlite.Native.win-x64.dll and libHyperlite.Native.linux-x64.so from the amalgamation archive vendored in deps/sqlite.\",",
               "      \"externalRefs\": [",
               "        {",
               "          \"referenceCategory\": \"PACKAGE-MANAGER\",",

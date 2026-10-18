@@ -401,7 +401,8 @@
         /// <remarks>
         /// Carried over from ht4c's uri_to_filename, including the drive letter handling
         /// that makes "file:///c/Temp/x" and "file:///c:/Temp/x" both come out as
-        /// "c:\Temp\x", and the percent decoding that follows the separator rewrite.
+        /// "c:\Temp\x", and the percent decoding that follows the separator rewrite. Both
+        /// on Windows only: elsewhere "file:///tmp/x" is "/tmp/x".
         /// </remarks>
         internal static string UriToFilename(string uri)
         {
@@ -412,10 +413,11 @@
                 throw new ArgumentException("Invalid uri scheme, file:///[drive][/path/]uri required");
             }
 
+            var windows = Path.DirectorySeparatorChar == '\\';
             var absolute = uri.StartsWith("file:///", StringComparison.Ordinal);
             var path = uri.Substring(Scheme.Length);
 
-            if (absolute && path.Length >= 3 && char.IsLetter(path[1]) && (path[2] == ':' || path[2] == '/'))
+            if (windows && absolute && path.Length >= 3 && char.IsLetter(path[1]) && (path[2] == ':' || path[2] == '/'))
             {
                 path = path.TrimStart('/');
                 if (path.Length > 1 && path[1] != ':')
@@ -429,8 +431,15 @@
                 throw new ArgumentException("Empty uri, file:///[drive][/path/]uri required");
             }
 
-            path = ReplaceAllRecursive(path, "///", "//");
-            path = ReplaceAllRecursive(path, "/", "\\");
+            if (windows)
+            {
+                path = ReplaceAllRecursive(path, "///", "//");
+                path = ReplaceAllRecursive(path, "/", "\\");
+            }
+            else
+            {
+                path = ReplaceAllRecursive(path, "//", "/");
+            }
 
             return UriDecode(path);
         }
