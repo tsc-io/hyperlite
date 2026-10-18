@@ -53,7 +53,8 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 native=dist/$configuration/runtimes/linux-x64/native
 scratch=$repo/build/$configuration/linux-scratch
 
-echo "=== native, gcc $(gcc -dumpfullversion), $(ldd --version | head -n 1) ==="
+# sed rather than head, which stops reading and leaves ldd writing into a closed pipe
+echo "=== native, gcc $(gcc -dumpfullversion), $(ldd --version | sed -n 1p) ==="
 cmake -S "$repo/src/Hyperlite.Native" -B "$repo/build/linux-x64/$configuration" \
     -DCMAKE_BUILD_TYPE="$configuration" >/dev/null
 cmake --build "$repo/build/linux-x64/$configuration" --parallel

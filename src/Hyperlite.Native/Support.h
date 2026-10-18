@@ -130,7 +130,7 @@ public:
     dynamic_buffer& operator=(const dynamic_buffer&) = delete;
 
     dynamic_buffer(dynamic_buffer&& other) noexcept
-        : own_(std::move(other.own_)), base(other.base), ptr(other.ptr), end_(other.end_)
+        : base(other.base), ptr(other.ptr), own_(std::move(other.own_)), end_(other.end_)
     {
         other.base = other.ptr = other.end_ = nullptr;
     }

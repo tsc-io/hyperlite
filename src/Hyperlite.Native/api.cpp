@@ -1385,8 +1385,9 @@ std::int32_t HYPERLITE_CALL fn_mut_del(void* h, const t_cell* c)
             ks.column_qualifier_len = static_cast<std::size_t>(c->cq_n);
             // a delete's flag follows from what was specified, unless the caller asked
             // for a specific version
-            ks.flag = c->flag == FLAG_DELETE_CELL_VERSION ? FLAG_DELETE_CELL_VERSION
-                                                          : FLAG_DELETE(c->cf, c->cq);
+            ks.flag = c->flag == FLAG_DELETE_CELL_VERSION
+                          ? static_cast<std::uint8_t>(FLAG_DELETE_CELL_VERSION)
+                          : FLAG_DELETE(c->cf, c->cq);
             ks.timestamp = static_cast<std::int64_t>(TIMESTAMP(c->ts));
             ks.revision = AUTO_ASSIGN;
 
