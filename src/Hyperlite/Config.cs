@@ -40,7 +40,11 @@
         /// <summary>Provider name value for the SQLite provider.</summary>
         public const string ProviderSQLite = "SQLite";
 
-        /// <summary>Uri property.</summary>
+        /// <summary>
+        /// Uri property, the database file as a <c>file://</c> uri: <c>file://db.sqlite</c> relative
+        /// to the working directory, <c>file:///c/data/db.sqlite</c> on Windows,
+        /// <c>file:///var/data/db.sqlite</c> elsewhere.
+        /// </summary>
         public const string Uri = "Hyperlite.Uri";
 
         /// <summary>Short form of <see cref="Uri" />.</summary>

@@ -197,7 +197,7 @@ that single item does three jobs:
 2. copies it next to every project that references Hyperlite - `Hyperlite.Persistence`, the
    client and the persistence suites, the smoke harness, the explorer, the benchmark - because
    `Content` flows through a `ProjectReference` and `None` does not
-3. carries it into the package under `runtimes\win-x64\native`
+3. carries it into the package under `runtimes\<rid>\native`
 
 Hyperlite's loader probes the directory the assembly sits in, so (2) is what makes every test
 and tool work with nothing said in its own project file.
@@ -211,7 +211,8 @@ by another runtime: native blocks go back through `mem_free`.
 the dll when it is in `dist`. Packing without it is a warning locally and an error on GitHub.
 
 Build order comes from a `ProjectReference` to the vcxproj with `ReferenceOutputAssembly`
-false. Three pieces of metadata on it are not optional:
+false, on Windows only - on Linux `build-linux.sh` runs cmake before anything managed is
+built. Three pieces of metadata on it are not optional:
 
 - `SkipGetTargetFrameworkProperties` - a vcxproj has no framework to negotiate and being
   asked for one is an error

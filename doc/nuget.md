@@ -8,7 +8,7 @@ zips the explorer.
 
 | package | contents |
 |---|---|
-| `Hyperlite` | `lib\{net48,net8.0,net10.0,netstandard2.0}`, `runtimes\win-x64\native`, `build\<tfm>\Hyperlite.targets`, `buildTransitive\<tfm>\Hyperlite.targets` |
+| `Hyperlite` | `lib\{net48,net8.0,net10.0,netstandard2.0}`, `runtimes\win-x64\native`, `runtimes\linux-x64\native`, `build\<tfm>\Hyperlite.targets`, `buildTransitive\<tfm>\Hyperlite.targets` |
 | `Hyperlite.Persistence` | `lib\{net48,net8.0,net10.0,netstandard2.0}`, dependency on `Hyperlite` |
 | `Hyperlite.Serialization` | `lib\netstandard2.0` |
 
@@ -24,7 +24,13 @@ pack.cmd
 ```
 
 `pack.cmd` passes `-p:NoBuild=true`, so the packages contain exactly the binaries that
-were built and tested rather than a fresh compile of possibly-changed sources.
+were built and tested rather than a fresh compile of possibly-changed sources. It deletes
+the previous packages first: nuget packs only when an input is newer than the package, and a
+file that has gone is not newer than anything.
+
+The Linux library comes from `build-linux.sh`, which `build.cmd` runs in WSL when there is a
+distribution. Without it the package is Windows only, and `pack.cmd` warns; on GitHub, which
+publishes, that is an error, and the build workflow's `linux` job provides the library.
 
 Packing after building a single framework would produce a package claiming support for
 that one framework alone - the id and the version do not vary by framework, so each pack
@@ -59,11 +65,13 @@ missing and only the suffix left.
 ## The native companion
 
 `Hyperlite.csproj` declares `Hyperlite.Native.win-x64.dll` once, as a `Content` item, and that
-item both copies the file around the build and packs it to `runtimes\win-x64\native`. See
+item both copies the file around the build and packs it to `runtimes\win-x64\native`. The
+Linux library, built elsewhere, is a `None` item packed to `runtimes\linux-x64\native`. See
 `build.md`.
 
-`Hyperlite.targets` ships alongside it and copies the companion next to the consumer's
-output. It is not redundant: `runtimes\` is not always honoured. A packages.config
+`Hyperlite.targets` ships alongside it and copies the Windows companion next to the consumer's
+output; on Linux it does nothing, there `runtimes\` is always honoured. On Windows it is not
+redundant: `runtimes\` is not always honoured. A packages.config
 project - still a real possibility on net48 - copies `lib\` and nothing else, a net48
 `PackageReference` project without a `RuntimeIdentifier` - a class library, a test
 project - does not copy `runtimes\` either, and Hyperlite's loader probes the directory
@@ -96,7 +104,9 @@ version to NuGet, so a consumer pinning either resolves the same package.
 By `.github/workflows/release.yml`, on a tag `v<package version>` - `v2026.10.0` for
 `2026.10.0.0` in `Version.props`. It runs `build.yml`, which builds, tests and packs on the
 CI runner, checks that the packages carry the version the tag names, pushes them to nuget.org
-and creates the GitHub release with the packages, the explorer zip and the native symbols.
+and creates the GitHub release with the packages, the explorer zip and the native symbols - the
+Windows pdb and the Linux `.debug`. It refuses a `Hyperlite` package without both native
+libraries.
 
 Pushing is not reversible, so the publishing job runs in the `nuget` environment, whose
 required reviewers approve each release. No API key is stored: nuget.org's trusted publishing
