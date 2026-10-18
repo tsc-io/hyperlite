@@ -96,7 +96,7 @@
             if (this.EnsureBuffer(l))
             {
                 var p = this.ptr;
-                memcpy(p, value, new UIntPtr((uint)l));
+                Marshal.Copy(value, 0, (IntPtr)p, l);
 
                 this.ptr += l;
             }
@@ -364,10 +364,6 @@
 
             base.Dispose(disposing);
         }
-
-        [DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl,
-            SetLastError = false)]
-        private static extern unsafe IntPtr memcpy(byte* dest, byte[] src, UIntPtr count);
 
         private unsafe bool EnsureBuffer(int requiredCapacity)
         {
