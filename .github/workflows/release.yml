@@ -1,6 +1,7 @@
 # Publishes a release when a tag v<package version> is pushed, e.g. v2026.10.0: builds, tests
 # and packs through build.yml, pushes the packages to nuget.org and creates the GitHub release
-# with the packages, the explorer zip and the native symbols attached.
+# with the packages, the explorer zip and the native symbols - the Windows pdb and the Linux
+# .debug - attached.
 #
 # Needs, once:
 #   - an environment named nuget in the repository settings, with required reviewers and a
@@ -62,6 +63,9 @@ jobs:
             test -f "artifacts/packages/$id.$version.nupkg" || { echo "::error::$id.$version.nupkg was not packed - the tag does not match Version.props"; exit 1; }
           done
           test -f "artifacts/explorer/Hyperlite.Explorer.$version.zip" || { echo "::error::Hyperlite.Explorer.$version.zip was not packed"; exit 1; }
+          for native in runtimes/win-x64/native/Hyperlite.Native.win-x64.dll runtimes/linux-x64/native/libHyperlite.Native.linux-x64.so; do
+            unzip -l "artifacts/packages/Hyperlite.$version.nupkg" "$native" >/dev/null || { echo "::error::Hyperlite.$version.nupkg does not contain $native"; exit 1; }
+          done
 
       - uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         id: login
@@ -86,4 +90,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "$GITHUB_REF_NAME" \
             --notes "See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/CHANGELOG.md)." \
-            artifacts/packages/*.nupkg artifacts/explorer/*.zip artifacts/native-symbols/*.pdb
+            artifacts/packages/*.nupkg artifacts/explorer/*.zip \
+            artifacts/native-symbols/win-x64/native/*.pdb artifacts/native-symbols/linux-x64/native/*.debug

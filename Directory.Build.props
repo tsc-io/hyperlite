@@ -45,6 +45,7 @@
       dist\<configuration>\*.nupkg                   the nuget packages
       dist\<configuration>\runtimes\win-x64\native   the native companion, laid out as a
                                                      package expects to find it
+      dist\<configuration>\runtimes\linux-x64\native the Linux one, from build-linux.sh
       build\<project>                                intermediate output
       build\<configuration>\<tfm>\TestResults        test results
       build\<configuration>\scratch                 working directory for the native test,
@@ -83,11 +84,19 @@
     <!--
       The native companion, produced by src\Hyperlite.Native and consumed by src\Hyperlite.
       Named here because both ends need to agree on it, and because the path shape is
-      the one the package uses, runtimes\<rid>\native.
+      the one the package uses, runtimes\<rid>\native. The one of the machine building:
+      Hyperlite.Native.vcxproj on Windows, its CMakeLists.txt on Linux.
+
+      LinuxCompanion is the Linux build as Windows sees it, copied back by build-linux.sh or
+      downloaded by the build workflow, for the package to carry both.
     -->
-    <HyperliteRid Condition="'$(HyperliteRid)' == ''">win-x64</HyperliteRid>
+    <HyperliteRid Condition="'$(HyperliteRid)' == '' and '$(OS)' == 'Windows_NT'">win-x64</HyperliteRid>
+    <HyperliteRid Condition="'$(HyperliteRid)' == ''">linux-x64</HyperliteRid>
+    <NativeCompanionName Condition="$(HyperliteRid.StartsWith('win'))">Hyperlite.Native.$(HyperliteRid).dll</NativeCompanionName>
+    <NativeCompanionName Condition="!$(HyperliteRid.StartsWith('win'))">libHyperlite.Native.$(HyperliteRid).so</NativeCompanionName>
     <NativeOutputPath>$(RepoRoot)dist\$(Configuration)\runtimes\$(HyperliteRid)\native\</NativeOutputPath>
-    <NativeCompanion>$(NativeOutputPath)Hyperlite.Native.$(HyperliteRid).dll</NativeCompanion>
+    <NativeCompanion>$(NativeOutputPath)$(NativeCompanionName)</NativeCompanion>
+    <LinuxCompanion>$(RepoRoot)dist\$(Configuration)\runtimes\linux-x64\native\libHyperlite.Native.linux-x64.so</LinuxCompanion>
   </PropertyGroup>
 
   <!--

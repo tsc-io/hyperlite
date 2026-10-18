@@ -30,6 +30,14 @@ if errorlevel 1 goto :failed
 "%msbuild%" "%~dp0Hyperlite.sln" -p:Configuration=%configuration% -p:Platform=x64 -m -v:minimal -nologo
 if errorlevel 1 goto :failed
 
+rem The Linux library, for pack.cmd to carry as well, when there is a WSL distribution to
+rem build it in - see build-linux.sh. Without one the package is Windows only, which pack.cmd
+rem warns about. Not on GitHub, where the build workflow's linux job builds it.
+call :wsl
+if errorlevel 1 goto :skiplinux
+wsl.exe --cd "%~dp0." -e bash ./build-linux.sh build %configuration% || goto :failed
+:skiplinux
+
 if not exist "%~dp0build\%configuration%" mkdir "%~dp0build\%configuration%"
 echo %date% %time%> "%marker%"
 
@@ -41,3 +49,9 @@ exit /b 0
 echo.
 echo BUILD FAILED ^(%configuration%^)
 exit /b 1
+
+:wsl
+if "%GITHUB_ACTIONS%" == "true" exit /b 1
+rem || rather than errorlevel: wsl.exe fails with -1, which "if errorlevel 1" does not see
+wsl.exe -e true >nul 2>&1 || exit /b 1
+exit /b 0

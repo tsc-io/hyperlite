@@ -1,6 +1,7 @@
 # Hyperlite
 
-An embedded, sorted, versioned cell store for .NET, on SQLite. Windows x64.
+An embedded, sorted, versioned cell store for .NET, on SQLite. Windows x64, and Linux x64
+with glibc 2.35 or newer.
 
 - `Hyperlite` - the store: tables, keys, mutators, scanners
 - `Hyperlite.Persistence` - an object mapper on top

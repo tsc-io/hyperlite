@@ -98,16 +98,32 @@
 
     The same item carries the file into the package under runtimes\<rid>\native, the
     location a PackageReference consumer resolves natives from.
+
+    The Linux build is packed beside it when it is there, from build-linux.sh or the build
+    workflow's linux job: a package without it is an error on GitHub, which publishes, and
+    only a warning on a machine without WSL.
   -->
   <ItemGroup>
     <Content Include="$(NativeCompanion)">
-      <Link>Hyperlite.Native.$(HyperliteRid).dll</Link>
+      <Link>$(NativeCompanionName)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Visible>false</Visible>
       <Pack>true</Pack>
       <PackagePath>runtimes\$(HyperliteRid)\native</PackagePath>
     </Content>
+    <None Include="$(LinuxCompanion)"
+          Condition="'$(HyperliteRid)' != 'linux-x64' and Exists('$(LinuxCompanion)')"
+          Visible="false"
+          Pack="true"
+          PackagePath="runtimes\linux-x64\native" />
   </ItemGroup>
+
+  <Target Name="CheckLinuxCompanion" BeforeTargets="GenerateNuspec" Condition="'$(HyperliteRid)' != 'linux-x64' and !Exists('$(LinuxCompanion)')">
+    <Error Condition="'$(GITHUB_ACTIONS)' == 'true'"
+           Text="$(LinuxCompanion) not found - the package would be Windows only." />
+    <Warning Condition="'$(GITHUB_ACTIONS)' != 'true'"
+             Text="$(LinuxCompanion) not found, packing for Windows only - run build-linux.sh in WSL first." />
+  </Target>
 
   <!--
     Shipped inside the package as build\<tfm>\Hyperlite.targets and as

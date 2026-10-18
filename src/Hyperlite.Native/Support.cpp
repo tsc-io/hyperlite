@@ -11,6 +11,7 @@
 #include <bcrypt.h>
 #pragma comment(lib, "bcrypt.lib")
 #else
+#include <cerrno>
 #include <sys/random.h>
 #endif
 
@@ -210,6 +211,10 @@ bool system_random(std::uint8_t* out, std::size_t len) noexcept
     while (done < len)
     {
         const ssize_t got = ::getrandom(out + done, len - done, 0);
+        if (got < 0 && errno == EINTR)
+        {
+            continue;
+        }
         if (got <= 0)
         {
             return false;

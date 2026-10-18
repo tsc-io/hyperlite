@@ -21,7 +21,47 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The Linux library, built and tested on the oldest glibc it is for, 2.35; the build job
+  # packs it beside the Windows one.
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Build and test
+        run: bash build-linux.sh test Release
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: test-results-linux
+          path: build/Release/*/TestResults/*.trx
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-native
+          path: |
+            dist/Release/runtimes/linux-x64/native/libHyperlite.Native.linux-x64.so
+            dist/Release/runtimes/linux-x64/native/libHyperlite.Native.linux-x64.so.debug
+          if-no-files-found: error
+
   build:
+    needs: linux
     # Visual Studio 2026: its clang-format is the one .clang-format is written for - VS 2022's
     # is clang-format 19, which rejects it - and its msbuild supports net10.0, which VS 2022's
     # does not. The vcxprojs' v143 toolset comes with the runner image.
@@ -65,6 +105,12 @@ jobs:
           path: build/Release/*/TestResults/*.trx
           if-no-files-found: ignore
 
+      # for the Hyperlite package to carry, see CheckLinuxCompanion in Hyperlite.csproj
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: linux-native
+          path: dist/Release/runtimes/linux-x64/native
+
       - name: Pack
         shell: cmd
         run: pack.cmd Release
@@ -85,5 +131,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-symbols
-          path: dist/Release/runtimes/win-x64/native/Hyperlite.Native.win-x64.pdb
+          path: |
+            dist/Release/runtimes/win-x64/native/Hyperlite.Native.win-x64.pdb
+            dist/Release/runtimes/linux-x64/native/libHyperlite.Native.linux-x64.so.debug
           if-no-files-found: error

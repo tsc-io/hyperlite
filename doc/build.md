@@ -105,6 +105,7 @@ dist\<configuration>\<tfm>\                      every deliverable for that fram
 dist\<configuration>\<tfm>\<suite>\              the test assemblies
 dist\<configuration>\*.nupkg                    the nuget packages
 dist\<configuration>\runtimes\win-x64\native\   the native companion
+dist\<configuration>\runtimes\linux-x64\native\ the Linux one, from build-linux.sh
 build\<project>\                                intermediate output
 build\<configuration>\<tfm>\TestResults\         test results
 build\<configuration>\scratch\                   working directory for the native test,
@@ -205,6 +206,10 @@ The C runtime is linked in (`/MT`), so the companion depends on nothing beyond W
 and a consumer needs no Visual C++ redistributable. Nothing crosses the boundary to be freed
 by another runtime: native blocks go back through `mem_free`.
 
+`Directory.Build.props` names the companion after the machine building - the dll on Windows,
+`libHyperlite.Native.linux-x64.so` on Linux - and `Hyperlite.csproj` packs the Linux one beside
+the dll when it is in `dist`. Packing without it is a warning locally and an error on GitHub.
+
 Build order comes from a `ProjectReference` to the vcxproj with `ReferenceOutputAssembly`
 false. Three pieces of metadata on it are not optional:
 
@@ -215,6 +220,28 @@ false. Three pieces of metadata on it are not optional:
 - `UndefineProperties=TargetFramework` - without it each of the four inner builds asks for
   the vcxproj under a different `TargetFramework`, msbuild treats those as four different
   projects, and four `cl.exe` race to write one pdb: `fatal error C1041`
+
+## Linux
+
+`src\Hyperlite.Native\CMakeLists.txt` builds `libHyperlite.Native.linux-x64.so` with gcc and
+the native test beside it. The vcxproj stays the reference: the sources and `SqliteDefines` are
+read out of it, so the two builds cannot configure sqlite differently - its configuration is
+part of the on-disk format. The amalgamation unpacks into the cmake build tree, not
+`deps\sqlite`, so a checkout shared with Windows keeps the two apart.
+
+Like the dll, the library needs nothing installed: libstdc++ and libgcc are linked in
+statically and their symbols hidden, and the only export is the entry point, by name -
+Linux has no ordinals. Built on Ubuntu 22.04 it needs glibc 2.35, and `build-linux.sh` fails
+if a symbol asks for anything newer. The debug information goes into
+`libHyperlite.Native.linux-x64.so.debug`, which the release carries beside the pdb.
+
+`build-linux.sh` builds and, with `test`, runs the native test, the smoke harness and the
+three suites on net8.0 and net10.0. From a Windows checkout - `build.cmd` and `test.cmd` call
+it through `wsl.exe` when a distribution is installed - it copies the sources to
+`~/.cache/hyperlite` first and the library back afterwards: the Windows file system is slow
+from WSL, and its locks are not the POSIX locks the native test looks for. On GitHub the
+`linux` job of the build workflow runs it on ubuntu-22.04, and the Windows job packs what it
+built.
 
 ## A quirk worth knowing
 
