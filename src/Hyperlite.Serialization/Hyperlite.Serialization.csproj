@@ -68,6 +68,7 @@
     <Compile Include="..\Hyperlite.Persistence\Serialization\BinaryArrayReader.cs" />
     <Compile Include="..\Hyperlite.Persistence\Serialization\BinaryStreamReader.cs" />
     <Compile Include="..\Hyperlite.Persistence\Serialization\BufferedBinaryWriter.cs" />
+    <Compile Include="..\Hyperlite.Persistence\Serialization\ByteCopy.cs" />
     <Compile Include="..\Hyperlite.Persistence\Serialization\CollectionFlags.cs" />
     <Compile Include="..\Hyperlite.Persistence\Serialization\Decoder.cs" />
     <Compile Include="..\Hyperlite.Persistence\Serialization\DecoderInfo.cs" />

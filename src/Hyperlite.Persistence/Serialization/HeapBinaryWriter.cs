@@ -89,13 +89,16 @@
         /// </summary>
         public unsafe int Length => (int)(this.ptr - (byte*)this.buffer);
 
-        public byte[] ToArray()
+        public unsafe byte[] ToArray()
         {
             var array = new byte[this.Count];
 
             if (array.Length > 0)
             {
-                Marshal.Copy(this.buffer, array, 0, array.Length);
+                fixed (byte* target = &array[0])
+                {
+                    ByteCopy.Copy((byte*)this.buffer, target, array.Length);
+                }
             }
 
             return array;
@@ -142,7 +145,10 @@
 
             this.EnsureBuffer(l);
             var p = this.ptr;
-            Marshal.Copy(value, 0, (IntPtr)p, l);
+            fixed (byte* source = value)
+            {
+                ByteCopy.Copy(source, p, l);
+            }
 
             this.ptr += l;
         }
