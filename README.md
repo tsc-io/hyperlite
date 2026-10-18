@@ -19,8 +19,8 @@ Three assemblies and one native companion:
 | `Hyperlite.Persistence` | the object mapper | entities, bindings, queries over the same api |
 | `Hyperlite.Serialization` | the serializer alone | the format without the persistence layer |
 
-`Hyperlite.Explorer` is a WPF front end for looking at a database. It is not a package but a
-plain zip, `Hyperlite.Explorer.<version>.zip`, with one folder per framework.
+`Hyperlite.Explorer` is a WPF front end for looking at a database, so Windows only. It is not a
+package but a plain zip, `Hyperlite.Explorer.<version>.zip`, with one folder per framework.
 
 SQLite is the storage engine, and the only one. Nothing runs as a server and nothing has to
 be installed: a database is a file, opened in process.
@@ -188,9 +188,10 @@ The suites under `tests` show the rest of the api.
 | the libraries ship for | `net48`, `net8.0`, `net10.0`, `netstandard2.0`; `Hyperlite.Serialization` for `netstandard2.0` alone |
 | the suites run on | `net48`, `net7.0`, `net8.0`, `net10.0` |
 
-Windows x64 and Linux x64, because the native half is; Linux from .NET 8 on. `netstandard2.0` is there so that consumers on
-`net461` through `net472`, and on `net5.0` through `net7.0`, resolve a real assembly rather
-than failing to resolve one or silently taking the `net48` build.
+Windows x64 and Linux x64, because the native half is; Linux from .NET 8 on, which is what its
+suites run on. `netstandard2.0` is there so that consumers on `net461` through `net472`, and on
+`net5.0` through `net7.0`, resolve a real assembly rather than failing to resolve one or
+silently taking the `net48` build.
 
 ### Requirements
 
@@ -219,7 +220,8 @@ half.
         pack.cmd             the three packages and the explorer zip, into dist\<configuration>
         build-linux.sh       the Linux half alone, in WSL or on Linux
 
-Each takes `Debug` as an optional argument. Or open `Hyperlite.sln`.
+Each takes `Debug` as an optional argument - `build-linux.sh` after `build` or `test`. Or open
+`Hyperlite.sln`.
 
 `build.cmd` drives msbuild rather than `dotnet build`, and that is not a preference: the
 solution contains C++ projects, which the dotnet cli cannot build. Everything else is
@@ -242,7 +244,8 @@ has built, and `test.cmd` and `pack.cmd` refuse to run without it.
 
 `build` and `dist` hold everything the build writes, apart from the sqlite sources unpacked
 into `deps\sqlite` and the generated `src\Hyperlite.Native\Hyperlite.version.h`. All of it
-is ignored by git, and deleting `build` or `dist` is safe.
+is ignored by git, and deleting `build` or `dist` is safe. From a Windows checkout,
+`build-linux.sh` builds in a copy in WSL, `~/.cache/hyperlite`, which is safe to delete too.
 
 ### Tests
 
@@ -256,11 +259,13 @@ is ignored by git, and deleting `build` or `dist` is safe.
 
 They run in that order because it is the order in which a failure is easiest to place: a
 break in the first says the storage engine, a break only in the last says the api surface.
+On Linux all five run again, the managed ones on `net8.0` and `net10.0`.
 
 The serialized form is pinned byte for byte. `TestFormatCompatibility` holds a corpus of
 266 values and a recorded hex form for each of the portable ones, so any change to the
-serializer that moves the format fails there and nowhere else. See `doc\testing.md` for how
-the suites are laid out.
+serializer that moves the format fails there and nowhere else - on Linux as on Windows, so a
+database written on one reads on the other. See `doc\testing.md` for how the suites are laid
+out.
 
 ### Documentation
 
