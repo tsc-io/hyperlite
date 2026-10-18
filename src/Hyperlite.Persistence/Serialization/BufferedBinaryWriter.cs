@@ -96,7 +96,10 @@
             if (this.EnsureBuffer(l))
             {
                 var p = this.ptr;
-                Marshal.Copy(value, 0, (IntPtr)p, l);
+                fixed (byte* source = value)
+                {
+                    ByteCopy.Copy(source, p, l);
+                }
 
                 this.ptr += l;
             }
